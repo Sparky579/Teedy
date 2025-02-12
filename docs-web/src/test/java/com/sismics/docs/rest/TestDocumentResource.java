@@ -11,13 +11,13 @@ import org.joda.time.format.DateTimeFormat;
 import org.junit.Assert;
 import org.junit.Test;
 
-import javax.json.JsonArray;
-import javax.json.JsonObject;
-import javax.ws.rs.client.Entity;
-import javax.ws.rs.core.Form;
-import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.Response;
-import javax.ws.rs.core.Response.Status;
+import jakarta.json.JsonArray;
+import jakarta.json.JsonObject;
+import jakarta.ws.rs.client.Entity;
+import jakarta.ws.rs.core.Form;
+import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.Response;
+import jakarta.ws.rs.core.Response.Status;
 import java.io.InputStream;
 import java.util.Date;
 
@@ -81,8 +81,17 @@ public class TestDocumentResource extends BaseJerseyTest {
                         .param("create_date", Long.toString(create1Date))), JsonObject.class);
         String document1Id = json.getString("id");
         Assert.assertNotNull(document1Id);
-        
-        // Create a document with document1
+
+        // Add a file to this document
+        String file1Id = clientUtil.addFileToDocument(FILE_EINSTEIN_ROOSEVELT_LETTER_PNG,
+                document1Token, document1Id);
+
+        // Share this document
+        target().path("/share").request()
+                .cookie(TokenBasedSecurityFilter.COOKIE_NAME, document1Token)
+                .put(Entity.form(new Form().param("id", document1Id)), JsonObject.class);
+
+        // Create another document with document1
         json = target().path("/document").request()
                 .cookie(TokenBasedSecurityFilter.COOKIE_NAME, document1Token)
                 .put(Entity.form(new Form()
@@ -92,16 +101,7 @@ public class TestDocumentResource extends BaseJerseyTest {
                         .param("relations", document1Id)), JsonObject.class);
         String document2Id = json.getString("id");
         Assert.assertNotNull(document2Id);
-        
-        // Add a file
-        String file1Id = clientUtil.addFileToDocument(FILE_EINSTEIN_ROOSEVELT_LETTER_PNG,
-                document1Token, document1Id);
 
-        // Share this document
-        target().path("/share").request()
-                .cookie(TokenBasedSecurityFilter.COOKIE_NAME, document1Token)
-                .put(Entity.form(new Form().param("id", document1Id)), JsonObject.class);
-        
         // List all documents
         json = target().path("/document/list")
                 .queryParam("sort_column", 3)
@@ -148,9 +148,18 @@ public class TestDocumentResource extends BaseJerseyTest {
         String document3Id = json.getString("id");
         Assert.assertNotNull(document3Id);
         
-        // Add a file
+        // Add a file to this document
         clientUtil.addFileToDocument(FILE_EINSTEIN_ROOSEVELT_LETTER_PNG,
                 document3Token, document3Id);
+
+        // Create another document with document3
+        json = target().path("/document").request()
+                .cookie(TokenBasedSecurityFilter.COOKIE_NAME, document3Token)
+                .put(Entity.form(new Form()
+                        .param("title", "My_super_title_document_4")
+                        .param("language", "eng")), JsonObject.class);
+        String document4Id = json.getString("id");
+        Assert.assertNotNull(document4Id);
 
         // List all documents from document3
         json = target().path("/document/list")
@@ -160,7 +169,7 @@ public class TestDocumentResource extends BaseJerseyTest {
                 .cookie(TokenBasedSecurityFilter.COOKIE_NAME, document3Token)
                 .get(JsonObject.class);
         documents = json.getJsonArray("documents");
-        Assert.assertEquals(1, documents.size());
+        Assert.assertEquals(2, documents.size());
 
         // Check highlights
         json = target().path("/document/list")
@@ -216,6 +225,7 @@ public class TestDocumentResource extends BaseJerseyTest {
         Assert.assertEquals(0, searchDocuments("mime:empty/void", document1Token));
         Assert.assertEquals(1, searchDocuments("after:2010 before:2040-08 tag:super shared:yes lang:eng simple:title simple:description full:uranium", document1Token));
         Assert.assertEquals(1, searchDocuments("title:My_super_title_document_3", document3Token));
+        Assert.assertEquals(2, searchDocuments("title:My_super_title_document_3 title:My_super_title_document_4", document3Token));
 
         // Search documents (nothing)
         Assert.assertEquals(0, searchDocuments("random", document1Token));
@@ -263,6 +273,7 @@ public class TestDocumentResource extends BaseJerseyTest {
         Assert.assertFalse(relations.getJsonObject(0).getBoolean("source"));
         Assert.assertEquals("My super title document 2", relations.getJsonObject(0).getString("title"));
         Assert.assertFalse(json.containsKey("files"));
+        Assert.assertEquals(file1Id, json.getString("file_id"));
 
         // Get document 2
         json = target().path("/document/" + document2Id).request()
@@ -275,6 +286,7 @@ public class TestDocumentResource extends BaseJerseyTest {
         Assert.assertTrue(relations.getJsonObject(0).getBoolean("source"));
         Assert.assertEquals("My super title document 1", relations.getJsonObject(0).getString("title"));
         Assert.assertFalse(json.containsKey("files"));
+        Assert.assertEquals(file1Id, json.getString("file_id"));
 
         // Create a tag
         json = target().path("/tag").request()
@@ -808,7 +820,7 @@ public class TestDocumentResource extends BaseJerseyTest {
     @Test
     public void testCustomMetadata() {
         // Login admin
-        String adminToken = clientUtil.login("admin", "admin", false);
+        String adminToken = adminToken();
 
         // Login metadata1
         clientUtil.createUser("metadata1");

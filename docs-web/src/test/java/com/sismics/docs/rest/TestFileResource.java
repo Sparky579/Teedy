@@ -12,13 +12,13 @@ import org.glassfish.jersey.media.multipart.file.StreamDataBodyPart;
 import org.junit.Assert;
 import org.junit.Test;
 
-import javax.json.JsonArray;
-import javax.json.JsonObject;
-import javax.ws.rs.client.Entity;
-import javax.ws.rs.core.Form;
-import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.Response;
-import javax.ws.rs.core.Response.Status;
+import jakarta.json.JsonArray;
+import jakarta.json.JsonObject;
+import jakarta.ws.rs.client.Entity;
+import jakarta.ws.rs.core.Form;
+import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.Response;
+import jakarta.ws.rs.core.Response.Status;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -105,7 +105,7 @@ public class TestFileResource extends BaseJerseyTest {
         Assert.assertEquals("PIA00452.jpg", files.getJsonObject(0).getString("name"));
         Assert.assertEquals("image/jpeg", files.getJsonObject(0).getString("mimetype"));
         Assert.assertEquals(0, files.getJsonObject(0).getInt("version"));
-        Assert.assertEquals(163510L, files.getJsonObject(0).getJsonNumber("size").longValue());
+        Assert.assertEquals(FILE_PIA_00452_JPG_SIZE, files.getJsonObject(0).getJsonNumber("size").longValue());
         Assert.assertEquals(file2Id, files.getJsonObject(1).getString("id"));
         Assert.assertEquals("PIA00452.jpg", files.getJsonObject(1).getString("name"));
         Assert.assertEquals(0, files.getJsonObject(1).getInt("version"));
@@ -370,7 +370,7 @@ public class TestFileResource extends BaseJerseyTest {
                 .get();
         is = (InputStream) response.getEntity();
         fileBytes = ByteStreams.toByteArray(is);
-        Assert.assertEquals(163510, fileBytes.length);
+        Assert.assertEquals(FILE_PIA_00452_JPG_SIZE, fileBytes.length);
         
         // Create another document
         String document2Id = clientUtil.createDocument(fileOrphanToken);
@@ -415,47 +415,35 @@ public class TestFileResource extends BaseJerseyTest {
         String file1Id = clientUtil.addFileToDocument(FILE_EINSTEIN_ROOSEVELT_LETTER_PNG, fileQuotaToken, null);
 
         // Check current quota
-        JsonObject json = target().path("/user").request()
-                .cookie(TokenBasedSecurityFilter.COOKIE_NAME, fileQuotaToken)
-                .get(JsonObject.class);
-        Assert.assertEquals(292641L, json.getJsonNumber("storage_current").longValue());
+        Assert.assertEquals(FILE_EINSTEIN_ROOSEVELT_LETTER_PNG_SIZE, getUserQuota(fileQuotaToken));
         
         // Add a file (292641 bytes large)
         clientUtil.addFileToDocument(FILE_EINSTEIN_ROOSEVELT_LETTER_PNG, fileQuotaToken, null);
         
         // Check current quota
-        json = target().path("/user").request()
-                .cookie(TokenBasedSecurityFilter.COOKIE_NAME, fileQuotaToken)
-                .get(JsonObject.class);
-        Assert.assertEquals(585282L, json.getJsonNumber("storage_current").longValue());
+        Assert.assertEquals(FILE_EINSTEIN_ROOSEVELT_LETTER_PNG_SIZE * 2, getUserQuota(fileQuotaToken));
         
         // Add a file (292641 bytes large)
         clientUtil.addFileToDocument(FILE_EINSTEIN_ROOSEVELT_LETTER_PNG, fileQuotaToken, null);
         
         // Check current quota
-        json = target().path("/user").request()
-                .cookie(TokenBasedSecurityFilter.COOKIE_NAME, fileQuotaToken)
-                .get(JsonObject.class);
-        Assert.assertEquals(877923L, json.getJsonNumber("storage_current").longValue());
+        Assert.assertEquals(FILE_EINSTEIN_ROOSEVELT_LETTER_PNG_SIZE * 3, getUserQuota(fileQuotaToken));
         
         // Add a file (292641 bytes large)
         try {
             clientUtil.addFileToDocument(FILE_EINSTEIN_ROOSEVELT_LETTER_PNG, fileQuotaToken, null);
             Assert.fail();
-        } catch (javax.ws.rs.BadRequestException ignored) {
+        } catch (jakarta.ws.rs.BadRequestException ignored) {
         }
         
         // Deletes a file
-        json = target().path("/file/" + file1Id).request()
+        JsonObject json = target().path("/file/" + file1Id).request()
                 .cookie(TokenBasedSecurityFilter.COOKIE_NAME, fileQuotaToken)
                 .delete(JsonObject.class);
         Assert.assertEquals("ok", json.getString("status"));
         
         // Check current quota
-        json = target().path("/user").request()
-                .cookie(TokenBasedSecurityFilter.COOKIE_NAME, fileQuotaToken)
-                .get(JsonObject.class);
-        Assert.assertEquals(585282L, json.getJsonNumber("storage_current").longValue());
+        Assert.assertEquals(FILE_EINSTEIN_ROOSEVELT_LETTER_PNG_SIZE * 2, getUserQuota(fileQuotaToken));
 
         // Create a document
         long create1Date = new Date().getTime();
@@ -472,10 +460,7 @@ public class TestFileResource extends BaseJerseyTest {
         clientUtil.addFileToDocument(FILE_PIA_00452_JPG, fileQuotaToken, document1Id);
 
         // Check current quota
-        json = target().path("/user").request()
-                .cookie(TokenBasedSecurityFilter.COOKIE_NAME, fileQuotaToken)
-                .get(JsonObject.class);
-        Assert.assertEquals(748792, json.getJsonNumber("storage_current").longValue());
+        Assert.assertEquals(FILE_EINSTEIN_ROOSEVELT_LETTER_PNG_SIZE * 2 + FILE_PIA_00452_JPG_SIZE, getUserQuota(fileQuotaToken));
 
         // Deletes the document
         json = target().path("/document/" + document1Id).request()
@@ -484,9 +469,12 @@ public class TestFileResource extends BaseJerseyTest {
         Assert.assertEquals("ok", json.getString("status"));
 
         // Check current quota
-        json = target().path("/user").request()
-                .cookie(TokenBasedSecurityFilter.COOKIE_NAME, fileQuotaToken)
-                .get(JsonObject.class);
-        Assert.assertEquals(585282L, json.getJsonNumber("storage_current").longValue());
+        Assert.assertEquals(FILE_EINSTEIN_ROOSEVELT_LETTER_PNG_SIZE * 2, getUserQuota(fileQuotaToken));
+    }
+
+    private long getUserQuota(String userToken) {
+        return target().path("/user").request()
+                .cookie(TokenBasedSecurityFilter.COOKIE_NAME, userToken)
+                .get(JsonObject.class).getJsonNumber("storage_current").longValue();
     }
 }

@@ -5,12 +5,12 @@ import com.sismics.util.totp.GoogleAuthenticator;
 import org.junit.Assert;
 import org.junit.Test;
 
-import javax.json.JsonArray;
-import javax.json.JsonObject;
-import javax.ws.rs.client.Entity;
-import javax.ws.rs.core.Form;
-import javax.ws.rs.core.Response;
-import javax.ws.rs.core.Response.Status;
+import jakarta.json.JsonArray;
+import jakarta.json.JsonObject;
+import jakarta.ws.rs.client.Entity;
+import jakarta.ws.rs.core.Form;
+import jakarta.ws.rs.core.Response;
+import jakarta.ws.rs.core.Response.Status;
 import java.util.Date;
 import java.util.Locale;
 import java.util.regex.Matcher;
@@ -37,7 +37,7 @@ public class TestUserResource extends BaseJerseyTest {
         clientUtil.createUser("alice");
 
         // Login admin
-        String adminToken = clientUtil.login("admin", "admin", false);
+        String adminToken = adminToken();
         
         // List all users
         json = target().path("/user/list")
@@ -75,7 +75,7 @@ public class TestUserResource extends BaseJerseyTest {
         response = target().path("/user").request()
                 .cookie(TokenBasedSecurityFilter.COOKIE_NAME, adminToken)
                 .put(Entity.form(new Form()
-                        .param("username", "bob-")
+                        .param("username", "bob/")
                         .param("email", "bob@docs.com")
                         .param("password", "12345678")
                         .param("storage_quota", "10")));
@@ -127,15 +127,6 @@ public class TestUserResource extends BaseJerseyTest {
         Assert.assertEquals(Status.BAD_REQUEST, Status.fromStatusCode(response.getStatus()));
         json = response.readEntity(JsonObject.class);
         Assert.assertEquals("AlreadyExistingUsername", json.getString("type"));
-
-        // Check if a username is free : OK
-        target().path("/user/check_username").queryParam("username", "carol").request().get(JsonObject.class);
-
-        // Check if a username is free : KO
-        response = target().path("/user/check_username").queryParam("username", "alice").request().get();
-        Assert.assertEquals(Status.OK, Status.fromStatusCode(response.getStatus()));
-        json = response.readEntity(JsonObject.class);
-        Assert.assertEquals("ko", json.getString("status"));
 
         // Login alice with extra whitespaces
         response = target().path("/user/login").request()
@@ -239,6 +230,11 @@ public class TestUserResource extends BaseJerseyTest {
                         .param("username", "alice")
                         .param("password", "12345678")));
         Assert.assertEquals(Status.FORBIDDEN, Status.fromStatusCode(response.getStatus()));
+
+        // Delete user bob
+        target().path("/user").request()
+                .cookie(TokenBasedSecurityFilter.COOKIE_NAME, bobToken)
+                .delete();
     }
 
     /**
@@ -250,7 +246,7 @@ public class TestUserResource extends BaseJerseyTest {
         clientUtil.createUser("admin_user1");
 
         // Login admin
-        String adminToken = clientUtil.login("admin", "admin", false);
+        String adminToken = adminToken();
 
         // Check admin information
         JsonObject json = target().path("/user").request()
@@ -336,7 +332,7 @@ public class TestUserResource extends BaseJerseyTest {
     @Test
     public void testTotp() {
         // Login admin
-        String adminToken = clientUtil.login("admin", "admin", false);
+        String adminToken = adminToken();
 
         // Create totp1 user
         clientUtil.createUser("totp1");
@@ -420,12 +416,18 @@ public class TestUserResource extends BaseJerseyTest {
                 .cookie(TokenBasedSecurityFilter.COOKIE_NAME, totp1Token)
                 .get(JsonObject.class);
         Assert.assertFalse(json.getBoolean("totp_enabled"));
+
+        // Delete totp1
+        response = target().path("/user/totp1").request()
+                .cookie(TokenBasedSecurityFilter.COOKIE_NAME, adminToken)
+                .delete();
+        Assert.assertEquals(Response.Status.OK, Response.Status.fromStatusCode(response.getStatus()));
     }
 
     @Test
     public void testResetPassword() throws Exception {
         // Login admin
-        String adminToken = clientUtil.login("admin", "admin", false);
+        String adminToken = adminToken();
 
         // Change SMTP configuration to target Wiser
         target().path("/app/config_smtp").request()
@@ -492,5 +494,11 @@ public class TestUserResource extends BaseJerseyTest {
         Assert.assertEquals(Response.Status.BAD_REQUEST, Response.Status.fromStatusCode(response.getStatus()));
         json = response.readEntity(JsonObject.class);
         Assert.assertEquals("KeyNotFound", json.getString("type"));
+
+        // Delete absent_minded
+        response = target().path("/user/absent_minded").request()
+                .cookie(TokenBasedSecurityFilter.COOKIE_NAME, adminToken)
+                .delete();
+        Assert.assertEquals(Response.Status.OK, Response.Status.fromStatusCode(response.getStatus()));
     }
 }

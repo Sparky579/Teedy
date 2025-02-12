@@ -4,11 +4,11 @@ import com.sismics.util.filter.TokenBasedSecurityFilter;
 import org.junit.Assert;
 import org.junit.Test;
 
-import javax.json.JsonArray;
-import javax.json.JsonObject;
-import javax.ws.rs.client.Entity;
-import javax.ws.rs.core.Form;
-import javax.ws.rs.core.Response;
+import jakarta.json.JsonArray;
+import jakarta.json.JsonObject;
+import jakarta.ws.rs.client.Entity;
+import jakarta.ws.rs.core.Form;
+import jakarta.ws.rs.core.Response;
 
 
 /**
@@ -27,7 +27,7 @@ public class TestRouteResource extends BaseJerseyTest {
         String route1Token = clientUtil.login("route1");
 
         // Login admin
-        String adminToken = clientUtil.login("admin", "admin", false);
+        String adminToken = adminToken();
 
         // Change SMTP configuration to target Wiser
         target().path("/app/config_smtp").request()
@@ -364,7 +364,7 @@ public class TestRouteResource extends BaseJerseyTest {
     @Test
     public void testTagActions() {
         // Login admin
-        String adminToken = clientUtil.login("admin", "admin", false);
+        String adminToken = adminToken();
 
         // Create an Approved tag
         JsonObject json = target().path("/tag").request()

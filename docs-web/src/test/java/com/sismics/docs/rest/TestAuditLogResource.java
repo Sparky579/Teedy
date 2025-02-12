@@ -4,10 +4,10 @@ import com.sismics.util.filter.TokenBasedSecurityFilter;
 import org.junit.Assert;
 import org.junit.Test;
 
-import javax.json.JsonArray;
-import javax.json.JsonObject;
-import javax.ws.rs.client.Entity;
-import javax.ws.rs.core.Form;
+import jakarta.json.JsonArray;
+import jakarta.json.JsonObject;
+import jakarta.ws.rs.client.Entity;
+import jakarta.ws.rs.core.Form;
 import java.util.Date;
 
 /**
@@ -118,6 +118,12 @@ public class TestAuditLogResource extends BaseJerseyTest {
         Assert.assertEquals(countByClass(logs, "Document"), 1);
         Assert.assertEquals(countByClass(logs, "Acl"), 2);
         Assert.assertEquals(countByClass(logs, "File"), 1);
+
+        // Delete auditlog1
+        String adminToken = adminToken();
+        target().path("/user/auditlog1").request()
+                .cookie(TokenBasedSecurityFilter.COOKIE_NAME, adminToken)
+                .delete();
     }
     
     /**

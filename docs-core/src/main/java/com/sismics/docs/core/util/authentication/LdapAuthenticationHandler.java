@@ -13,10 +13,9 @@ import org.apache.directory.api.ldap.model.entry.Attribute;
 import org.apache.directory.api.ldap.model.entry.Entry;
 import org.apache.directory.api.ldap.model.entry.Value;
 import org.apache.directory.api.ldap.model.message.SearchScope;
-import org.apache.directory.ldap.client.api.DefaultLdapConnectionFactory;
+import org.apache.directory.ldap.client.api.LdapConnection;
 import org.apache.directory.ldap.client.api.LdapConnectionConfig;
-import org.apache.directory.ldap.client.api.LdapConnectionPool;
-import org.apache.directory.ldap.client.api.ValidatingPoolableLdapConnectionFactory;
+import org.apache.directory.ldap.client.api.LdapNetworkConnection;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -35,59 +34,41 @@ public class LdapAuthenticationHandler implements AuthenticationHandler {
     private static final Logger log = LoggerFactory.getLogger(LdapAuthenticationHandler.class);
 
     /**
-     * LDAP connection pool.
+     * Get a LDAP connection.
+     * @return LdapConnection
      */
-    private static LdapConnectionPool pool;
-
-    /**
-     * Reset the LDAP pool.
-     */
-    public static void reset() {
-        if (pool != null) {
-            try {
-                pool.close();
-            } catch (Exception e) {
-                // NOP
-            }
-        }
-        pool = null;
-    }
-
-    /**
-     * Initialize the LDAP pool.
-     */
-    private static void init() {
+    private LdapConnection getConnection() {
         ConfigDao configDao = new ConfigDao();
         Config ldapEnabled = configDao.getById(ConfigType.LDAP_ENABLED);
-        if (pool != null || ldapEnabled == null || !Boolean.parseBoolean(ldapEnabled.getValue())) {
-            return;
+        if (ldapEnabled == null || !Boolean.parseBoolean(ldapEnabled.getValue())) {
+            return null;
         }
 
         LdapConnectionConfig config = new LdapConnectionConfig();
         config.setLdapHost(ConfigUtil.getConfigStringValue(ConfigType.LDAP_HOST));
         config.setLdapPort(ConfigUtil.getConfigIntegerValue(ConfigType.LDAP_PORT));
+        config.setUseSsl(ConfigUtil.getConfigBooleanValue(ConfigType.LDAP_USESSL));
         config.setName(ConfigUtil.getConfigStringValue(ConfigType.LDAP_ADMIN_DN));
         config.setCredentials(ConfigUtil.getConfigStringValue(ConfigType.LDAP_ADMIN_PASSWORD));
 
-        DefaultLdapConnectionFactory factory = new DefaultLdapConnectionFactory(config);
-        pool = new LdapConnectionPool(new ValidatingPoolableLdapConnectionFactory(factory), null);
+        return new LdapNetworkConnection(config);
     }
 
     @Override
     public User authenticate(String username, String password) {
-        init();
-        if (pool == null) {
-            return null;
-        }
-
         // Fetch and authenticate the user
         Entry userEntry;
-        try {
-            EntryCursor cursor = pool.getConnection().search(ConfigUtil.getConfigStringValue(ConfigType.LDAP_BASE_DN),
+        try (LdapConnection ldapConnection = getConnection()) {
+            if (ldapConnection == null) {
+                return null;
+            }
+            ldapConnection.bind();
+
+            EntryCursor cursor = ldapConnection.search(ConfigUtil.getConfigStringValue(ConfigType.LDAP_BASE_DN),
                     ConfigUtil.getConfigStringValue(ConfigType.LDAP_FILTER).replace("USERNAME", username), SearchScope.SUBTREE);
             if (cursor.next()) {
                 userEntry = cursor.get();
-                pool.getConnection().bind(userEntry.getDn(), password);
+                ldapConnection.bind(userEntry.getDn(), password);
             } else {
                 // User not found
                 return null;

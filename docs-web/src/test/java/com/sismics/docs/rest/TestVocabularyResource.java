@@ -4,11 +4,11 @@ import com.sismics.util.filter.TokenBasedSecurityFilter;
 import org.junit.Assert;
 import org.junit.Test;
 
-import javax.json.JsonObject;
-import javax.ws.rs.client.Entity;
-import javax.ws.rs.core.Form;
-import javax.ws.rs.core.Response;
-import javax.ws.rs.core.Response.Status;
+import jakarta.json.JsonObject;
+import jakarta.ws.rs.client.Entity;
+import jakarta.ws.rs.core.Form;
+import jakarta.ws.rs.core.Response;
+import jakarta.ws.rs.core.Response.Status;
 
 /**
  * Exhaustive test of the vocabulary resource.
@@ -26,7 +26,7 @@ public class TestVocabularyResource extends BaseJerseyTest {
         String vocabulary1Token = clientUtil.login("vocabulary1");
         
         // Login admin
-        String adminToken = clientUtil.login("admin", "admin", false);
+        String adminToken = adminToken();
         
         // Get coverage vocabularies entries
         JsonObject json = target().path("/vocabulary/coverage").request()

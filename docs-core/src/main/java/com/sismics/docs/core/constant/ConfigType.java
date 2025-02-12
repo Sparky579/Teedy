@@ -1,9 +1,9 @@
 package com.sismics.docs.core.constant;
 
 /**
- * Configuration parameters. 
+ * Configuration parameters.
  *
- * @author jtremeaux 
+ * @author jtremeaux
  */
 public enum ConfigType {
     /**
@@ -19,6 +19,11 @@ public enum ConfigType {
      * Guest login.
      */
     GUEST_LOGIN,
+
+    /**
+     * OCR enabled.
+     */
+    OCR_ENABLED,
 
     /**
      * Default language.
@@ -40,6 +45,7 @@ public enum ConfigType {
     INBOX_ENABLED,
     INBOX_HOSTNAME,
     INBOX_PORT,
+    INBOX_STARTTLS,
     INBOX_USERNAME,
     INBOX_PASSWORD,
     INBOX_FOLDER,
@@ -53,6 +59,7 @@ public enum ConfigType {
     LDAP_ENABLED,
     LDAP_HOST,
     LDAP_PORT,
+    LDAP_USESSL,
     LDAP_ADMIN_DN,
     LDAP_ADMIN_PASSWORD,
     LDAP_BASE_DN,

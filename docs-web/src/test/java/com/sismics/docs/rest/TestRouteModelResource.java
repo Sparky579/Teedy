@@ -4,10 +4,10 @@ import com.sismics.util.filter.TokenBasedSecurityFilter;
 import org.junit.Assert;
 import org.junit.Test;
 
-import javax.json.JsonArray;
-import javax.json.JsonObject;
-import javax.ws.rs.client.Entity;
-import javax.ws.rs.core.Form;
+import jakarta.json.JsonArray;
+import jakarta.json.JsonObject;
+import jakarta.ws.rs.client.Entity;
+import jakarta.ws.rs.core.Form;
 
 
 /**
@@ -22,7 +22,7 @@ public class TestRouteModelResource extends BaseJerseyTest {
     @Test
     public void testRouteModelResource() {
         // Login admin
-        String adminToken = clientUtil.login("admin", "admin", false);
+        String adminToken = adminToken();
 
         // Login routeModel1
         clientUtil.createUser("routeModel1");
@@ -137,5 +137,10 @@ public class TestRouteModelResource extends BaseJerseyTest {
                 .get(JsonObject.class);
         routeModels = json.getJsonArray("routemodels");
         Assert.assertEquals(1, routeModels.size());
+
+        // Deletes routeModel1 user
+        target().path("/user/routeModel1").request()
+                .cookie(TokenBasedSecurityFilter.COOKIE_NAME, adminToken)
+                .delete();
     }
 }

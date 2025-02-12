@@ -1,16 +1,26 @@
 package com.sismics.docs.rest.resource;
 
-import com.google.common.base.Joiner;
-import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.sismics.docs.core.constant.AclType;
 import com.sismics.docs.core.constant.ConfigType;
 import com.sismics.docs.core.constant.Constants;
 import com.sismics.docs.core.constant.PermType;
-import com.sismics.docs.core.dao.*;
+import com.sismics.docs.core.dao.AclDao;
+import com.sismics.docs.core.dao.ContributorDao;
+import com.sismics.docs.core.dao.DocumentDao;
+import com.sismics.docs.core.dao.FileDao;
+import com.sismics.docs.core.dao.RelationDao;
+import com.sismics.docs.core.dao.RouteStepDao;
+import com.sismics.docs.core.dao.TagDao;
+import com.sismics.docs.core.dao.UserDao;
 import com.sismics.docs.core.dao.criteria.DocumentCriteria;
 import com.sismics.docs.core.dao.criteria.TagCriteria;
-import com.sismics.docs.core.dao.dto.*;
+import com.sismics.docs.core.dao.dto.AclDto;
+import com.sismics.docs.core.dao.dto.ContributorDto;
+import com.sismics.docs.core.dao.dto.DocumentDto;
+import com.sismics.docs.core.dao.dto.RelationDto;
+import com.sismics.docs.core.dao.dto.RouteStepDto;
+import com.sismics.docs.core.dao.dto.TagDto;
 import com.sismics.docs.core.event.DocumentCreatedAsyncEvent;
 import com.sismics.docs.core.event.DocumentDeletedAsyncEvent;
 import com.sismics.docs.core.event.DocumentUpdatedAsyncEvent;
@@ -19,10 +29,15 @@ import com.sismics.docs.core.model.context.AppContext;
 import com.sismics.docs.core.model.jpa.Document;
 import com.sismics.docs.core.model.jpa.File;
 import com.sismics.docs.core.model.jpa.User;
-import com.sismics.docs.core.util.*;
+import com.sismics.docs.core.util.ConfigUtil;
+import com.sismics.docs.core.util.DocumentUtil;
+import com.sismics.docs.core.util.FileUtil;
+import com.sismics.docs.core.util.MetadataUtil;
+import com.sismics.docs.core.util.PdfUtil;
 import com.sismics.docs.core.util.jpa.PaginatedList;
 import com.sismics.docs.core.util.jpa.PaginatedLists;
 import com.sismics.docs.core.util.jpa.SortCriteria;
+import com.sismics.docs.rest.util.DocumentSearchCriteriaUtil;
 import com.sismics.rest.exception.ClientException;
 import com.sismics.rest.exception.ForbiddenClientException;
 import com.sismics.rest.exception.ServerException;
@@ -33,54 +48,54 @@ import com.sismics.util.EmailUtil;
 import com.sismics.util.JsonUtil;
 import com.sismics.util.context.ThreadLocalContext;
 import com.sismics.util.mime.MimeType;
+import jakarta.json.Json;
+import jakarta.json.JsonArrayBuilder;
+import jakarta.json.JsonObjectBuilder;
+import jakarta.ws.rs.Consumes;
+import jakarta.ws.rs.DELETE;
+import jakarta.ws.rs.FormParam;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.HEAD;
+import jakarta.ws.rs.NotFoundException;
+import jakarta.ws.rs.POST;
+import jakarta.ws.rs.PUT;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.PathParam;
+import jakarta.ws.rs.QueryParam;
+import jakarta.ws.rs.core.Response;
+import jakarta.ws.rs.core.StreamingOutput;
 import org.apache.commons.collections4.CollectionUtils;
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.glassfish.jersey.media.multipart.FormDataBodyPart;
 import org.glassfish.jersey.media.multipart.FormDataParam;
-import org.joda.time.DateTime;
-import org.joda.time.format.DateTimeFormat;
-import org.joda.time.format.DateTimeFormatter;
-import org.joda.time.format.DateTimeFormatterBuilder;
-import org.joda.time.format.DateTimeParser;
 
-import javax.json.Json;
-import javax.json.JsonArrayBuilder;
-import javax.json.JsonObjectBuilder;
 import javax.mail.Message;
 import javax.mail.MessagingException;
 import javax.mail.Session;
 import javax.mail.internet.MimeMessage;
-import javax.ws.rs.*;
-import javax.ws.rs.core.Response;
-import javax.ws.rs.core.StreamingOutput;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
 import java.text.MessageFormat;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Date;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Properties;
+import java.util.Set;
+import java.util.UUID;
 
 /**
  * Document REST resources.
- * 
+ *
  * @author bgamard
  */
 @Path("/document")
 public class DocumentResource extends BaseResource {
-
-    protected static final DateTimeParser YEAR_PARSER = DateTimeFormat.forPattern("yyyy").getParser();
-    protected static final DateTimeParser MONTH_PARSER = DateTimeFormat.forPattern("yyyy-MM").getParser();
-    protected static final DateTimeParser DAY_PARSER = DateTimeFormat.forPattern("yyyy-MM-dd").getParser();
-    
-    private static final DateTimeFormatter DAY_FORMATTER = new DateTimeFormatter(null, DAY_PARSER);
-    private static final DateTimeFormatter MONTH_FORMATTER = new DateTimeFormatter(null, MONTH_PARSER);
-    private static final DateTimeFormatter YEAR_FORMATTER = new DateTimeFormatter(null, YEAR_PARSER);
-
-    private static final DateTimeParser[] DATE_PARSERS = new DateTimeParser[]{
-            YEAR_PARSER,
-            MONTH_PARSER,
-            DAY_PARSER};
-    private static final DateTimeFormatter DATE_FORMATTER = new DateTimeFormatterBuilder().append( null, DATE_PARSERS).toFormatter();
 
     /**
      * Returns a document.
@@ -89,8 +104,8 @@ public class DocumentResource extends BaseResource {
      * @apiName GetDocument
      * @apiGroup Document
      * @apiParam {String} id Document ID
-     * @apiParam {String} share Share ID
-     * @apiParam {Booleans} files If true includes files information
+     * @apiParam {String} [share] Share ID
+     * @apiParam {Boolean} [files] If true includes files information
      * @apiSuccess {String} id ID
      * @apiSuccess {String} title Title
      * @apiSuccess {String} description Description
@@ -112,6 +127,7 @@ public class DocumentResource extends BaseResource {
      * @apiSuccess {String} coverage Coverage
      * @apiSuccess {String} rights Rights
      * @apiSuccess {String} creator Username of the creator
+     * @apiSuccess {String} file_id Main file ID
      * @apiSuccess {Boolean} writable True if the document is writable by the current user
      * @apiSuccess {Object[]} acls List of ACL
      * @apiSuccess {String} acls.id ID
@@ -143,6 +159,11 @@ public class DocumentResource extends BaseResource {
      * @apiSuccess {String} files.version Zero-based version number
      * @apiSuccess {String} files.mimetype MIME type
      * @apiSuccess {String} files.create_date Create date (timestamp)
+     * @apiSuccess {Object[]} metadata List of metadata
+     * @apiSuccess {String} metadata.id ID
+     * @apiSuccess {String} metadata.name Name
+     * @apiSuccess {String="STRING","INTEGER","FLOAT","DATE","BOOLEAN"} metadata.type Type
+     * @apiSuccess {Object} metadata.value Value
      * @apiError (client) NotFound Document not found
      * @apiPermission none
      * @apiVersion 1.5.0
@@ -158,22 +179,24 @@ public class DocumentResource extends BaseResource {
             @QueryParam("share") String shareId,
             @QueryParam("files") Boolean files) {
         authenticate();
-        
+
         DocumentDao documentDao = new DocumentDao();
         DocumentDto documentDto = documentDao.getDocument(documentId, PermType.READ, getTargetIdList(shareId));
         if (documentDto == null) {
             throw new NotFoundException();
         }
-            
-        JsonObjectBuilder document = Json.createObjectBuilder()
-                .add("id", documentDto.getId())
-                .add("title", documentDto.getTitle())
-                .add("description", JsonUtil.nullable(documentDto.getDescription()))
-                .add("create_date", documentDto.getCreateTimestamp())
-                .add("update_date", documentDto.getUpdateTimestamp())
-                .add("language", documentDto.getLanguage())
-                .add("shared", documentDto.getShared())
-                .add("file_count", documentDto.getFileCount());
+
+        JsonObjectBuilder document = createDocumentObjectBuilder(documentDto)
+                .add("creator", documentDto.getCreator())
+                .add("coverage", JsonUtil.nullable(documentDto.getCoverage()))
+                .add("file_count", documentDto.getFileCount())
+                .add("format", JsonUtil.nullable(documentDto.getFormat()))
+                .add("identifier", JsonUtil.nullable(documentDto.getIdentifier()))
+                .add("publisher", JsonUtil.nullable(documentDto.getPublisher()))
+                .add("rights", JsonUtil.nullable(documentDto.getRights()))
+                .add("source", JsonUtil.nullable(documentDto.getSource()))
+                .add("subject", JsonUtil.nullable(documentDto.getSubject()))
+                .add("type", JsonUtil.nullable(documentDto.getType()));
 
         List<TagDto> tagDtoList = null;
         if (principal.isAnonymous()) {
@@ -187,26 +210,8 @@ public class DocumentResource extends BaseResource {
                             .setTargetIdList(getTargetIdList(null)) // No tags for shares
                             .setDocumentId(documentId),
                     new SortCriteria(1, true));
-            JsonArrayBuilder tags = Json.createArrayBuilder();
-            for (TagDto tagDto : tagDtoList) {
-                tags.add(Json.createObjectBuilder()
-                        .add("id", tagDto.getId())
-                        .add("name", tagDto.getName())
-                        .add("color", tagDto.getColor()));
-            }
-            document.add("tags", tags);
+            document.add("tags", createTagsArrayBuilder(tagDtoList));
         }
-        
-        // Below is specific to GET /document/id
-        document.add("subject", JsonUtil.nullable(documentDto.getSubject()));
-        document.add("identifier", JsonUtil.nullable(documentDto.getIdentifier()));
-        document.add("publisher", JsonUtil.nullable(documentDto.getPublisher()));
-        document.add("format", JsonUtil.nullable(documentDto.getFormat()));
-        document.add("source", JsonUtil.nullable(documentDto.getSource()));
-        document.add("type", JsonUtil.nullable(documentDto.getType()));
-        document.add("coverage", JsonUtil.nullable(documentDto.getCoverage()));
-        document.add("rights", JsonUtil.nullable(documentDto.getRights()));
-        document.add("creator", documentDto.getCreator());
 
         // Add ACL
         AclUtil.addAcls(document, documentId, getTargetIdList(shareId));
@@ -230,7 +235,7 @@ public class DocumentResource extends BaseResource {
             }
             document.add("inherited_acls", aclList);
         }
-        
+
         // Add contributors
         ContributorDao contributorDao = new ContributorDao();
         List<ContributorDto> contributorDtoList = contributorDao.getByDocumentId(documentId);
@@ -241,7 +246,7 @@ public class DocumentResource extends BaseResource {
                     .add("email", contributorDto.getEmail()));
         }
         document.add("contributors", contributorList);
-        
+
         // Add relations
         RelationDao relationDao = new RelationDao();
         List<RelationDto> relationDtoList = relationDao.getByDocumentId(documentId);
@@ -280,7 +285,7 @@ public class DocumentResource extends BaseResource {
 
         return Response.ok().entity(document.build()).build();
     }
-    
+
     /**
      * Export a document to PDF.
      *
@@ -290,7 +295,6 @@ public class DocumentResource extends BaseResource {
      * @apiParam {String} id Document ID
      * @apiParam {String} share Share ID
      * @apiParam {Boolean} metadata If true, export metadata
-     * @apiParam {Boolean} comments If true, export comments
      * @apiParam {Boolean} fitimagetopage If true, fit the images to pages
      * @apiParam {Number} margin Margin around the pages, in millimeter
      * @apiSuccess {String} pdf The whole response is the PDF file
@@ -302,7 +306,6 @@ public class DocumentResource extends BaseResource {
      * @param documentId Document ID
      * @param shareId Share ID
      * @param metadata Export metadata
-     * @param comments Export comments
      * @param fitImageToPage Fit images to page
      * @param marginStr Margins
      * @return Response
@@ -313,21 +316,20 @@ public class DocumentResource extends BaseResource {
             @PathParam("id") String documentId,
             @QueryParam("share") String shareId,
             final @QueryParam("metadata") Boolean metadata,
-            final @QueryParam("comments") Boolean comments,
             final @QueryParam("fitimagetopage") Boolean fitImageToPage,
             @QueryParam("margin") String marginStr) {
         authenticate();
-        
+
         // Validate input
         final int margin = ValidationUtil.validateInteger(marginStr, "margin");
-        
+
         // Get document and check read permission
         DocumentDao documentDao = new DocumentDao();
         final DocumentDto documentDto = documentDao.getDocument(documentId, PermType.READ, getTargetIdList(shareId));
         if (documentDto == null) {
             throw new NotFoundException();
         }
-        
+
         // Get files
         FileDao fileDao = new FileDao();
         UserDao userDao = new UserDao();
@@ -338,7 +340,7 @@ public class DocumentResource extends BaseResource {
             User user = userDao.getById(file.getUserId());
             file.setPrivateKey(user.getPrivateKey());
         }
-        
+
         // Convert to PDF
         StreamingOutput stream = outputStream -> {
             try {
@@ -353,19 +355,36 @@ public class DocumentResource extends BaseResource {
                 .header("Content-Disposition", "inline; filename=\"" + documentDto.getTitle() + ".pdf\"")
                 .build();
     }
-    
+
     /**
-     * Returns all documents.
+     * Returns all documents, if a parameter is considered invalid, the search result will be empty.
      *
      * @api {get} /document/list Get documents
      * @apiName GetDocumentList
      * @apiGroup Document
-     * @apiParam {String} limit Total number of documents to return
-     * @apiParam {String} offset Start at this index
-     * @apiParam {Number} sort_column Column index to sort on
-     * @apiParam {Boolean} asc If true, sort in ascending order
-     * @apiParam {String} search Search query (see "Document search syntax" on the top of the page for explanations)
-     * @apiParam {Booleans} files If true includes files information
+     *
+     * @apiParam {String} [limit] Total number of documents to return (default is <code>10</code>)
+     * @apiParam {String} [offset] Start at this index (default is <code>0</code>)
+     * @apiParam {Number} [sort_column] Column index to sort on
+     * @apiParam {Boolean} [asc] If <code>true</code> sorts in ascending order
+     * @apiParam {String} [search] Search query (see "Document search syntax" on the top of the page for explanations) when the input is entered by a human.
+     * @apiParam {Boolean} [files] If <code>true</code> includes files information
+     *
+     * @apiParam {String} [search[after]] The document must have been created after or at the value moment, accepted format is <code>yyyy-MM-dd</code>
+     * @apiParam {String} [search[before]] The document must have been created before or at the value moment, accepted format is <code>yyyy-MM-dd</code>
+     * @apiParam {String} [search[by]] The document must have been created by the specified creator's username with an exact match, the user must not be deleted
+     * @apiParam {String} [search[full]] Used as a search criteria for all fields including the document's files content, several comma-separated values can be specified and the document must match any of them
+     * @apiParam {String} [search[lang]] The document must be of the specified language (example: <code>en</code>)
+     * @apiParam {String} [search[mime]] The document must be of the specified mime type (example: <code>image/png</code>)
+     * @apiParam {String} [search[simple]] Used as a search criteria for all fields except the document's files content, several comma-separated values can be specified and the document must match any of them
+     * @apiParam {Boolean} [search[shared]] If <code>true</code> the document must be shared, else it is ignored
+     * @apiParam {String} [search[tag]] The document must contain a tag or a child of a tag that starts with the value, case is ignored, several comma-separated values can be specified and the document must match all tag filters
+     * @apiParam {String} [search[nottag]] The document must not contain a tag or a child of a tag that starts with the value, case is ignored, several comma-separated values can be specified and the document must match all tag filters
+     * @apiParam {String} [search[title]] The document's title must be the value, several comma-separated values can be specified and the document must match any of the titles
+     * @apiParam {String} [search[uafter]] The document must have been updated after or at the value moment, accepted format is <code>yyyy-MM-dd</code>
+     * @apiParam {String} [search[ubefore]] The document must have been updated before or at the value moment, accepted format is <code>yyyy-MM-dd</code>
+     * @apiParam {String} [search[workflow]] If the value is <code>me</code> the document must have an active route, for other values the criteria is ignored
+     *
      * @apiSuccess {Number} total Total number of documents
      * @apiSuccess {Object[]} documents List of documents
      * @apiSuccess {String} documents.id ID
@@ -391,6 +410,7 @@ public class DocumentResource extends BaseResource {
      * @apiSuccess {String} documents.files.mimetype MIME type
      * @apiSuccess {String} documents.files.create_date Create date (timestamp)
      * @apiSuccess {String[]} suggestions List of search suggestions
+     *
      * @apiError (client) ForbiddenError Access denied
      * @apiError (server) SearchError Error searching in documents
      * @apiPermission user
@@ -412,19 +432,56 @@ public class DocumentResource extends BaseResource {
             @QueryParam("sort_column") Integer sortColumn,
             @QueryParam("asc") Boolean asc,
             @QueryParam("search") String search,
-            @QueryParam("files") Boolean files) {
+            @QueryParam("files") Boolean files,
+
+            @QueryParam("search[after]") String searchCreatedAfter,
+            @QueryParam("search[before]") String searchCreatedBefore,
+            @QueryParam("search[by]") String searchBy,
+            @QueryParam("search[full]") String searchFull,
+            @QueryParam("search[lang]") String searchLang,
+            @QueryParam("search[mime]") String searchMime,
+            @QueryParam("search[shared]") Boolean searchShared,
+            @QueryParam("search[simple]") String searchSimple,
+            @QueryParam("search[tag]") String searchTag,
+            @QueryParam("search[nottag]") String searchTagNot,
+            @QueryParam("search[title]") String searchTitle,
+            @QueryParam("search[uafter]") String searchUpdatedAfter,
+            @QueryParam("search[ubefore]") String searchUpdatedBefore,
+            @QueryParam("search[searchworkflow]") String searchWorkflow
+    ) {
         if (!authenticate()) {
             throw new ForbiddenClientException();
         }
-        
+
         JsonObjectBuilder response = Json.createObjectBuilder();
         JsonArrayBuilder documents = Json.createArrayBuilder();
-        
+
         TagDao tagDao = new TagDao();
         PaginatedList<DocumentDto> paginatedList = PaginatedLists.create(limit, offset);
         List<String> suggestionList = Lists.newArrayList();
         SortCriteria sortCriteria = new SortCriteria(sortColumn, asc);
-        DocumentCriteria documentCriteria = parseSearchQuery(search);
+
+        List<TagDto> allTagDtoList = tagDao.findByCriteria(new TagCriteria().setTargetIdList(getTargetIdList(null)), null);
+
+        DocumentCriteria documentCriteria = DocumentSearchCriteriaUtil.parseSearchQuery(search, allTagDtoList);
+        DocumentSearchCriteriaUtil.addHttpSearchParams(
+                documentCriteria,
+                searchBy,
+                searchCreatedAfter,
+                searchCreatedBefore,
+                searchFull,
+                searchLang,
+                searchMime,
+                searchShared,
+                searchSimple,
+                searchTag,
+                searchTagNot,
+                searchTitle,
+                searchUpdatedAfter,
+                searchUpdatedBefore,
+                searchWorkflow,
+                allTagDtoList);
+
         documentCriteria.setTargetIdList(getTargetIdList(null));
         try {
             AppContext.getInstance().getIndexingHandler().findByCriteria(paginatedList, suggestionList, documentCriteria, sortCriteria);
@@ -433,11 +490,14 @@ public class DocumentResource extends BaseResource {
         }
 
         // Find the files of the documents
+        Iterable<String> documentsIds = CollectionUtils.collect(paginatedList.getResultList(), DocumentDto::getId);
+        FileDao fileDao = new FileDao();
         List<File> filesList = null;
+        Map<String, Long> filesCountByDocument = null;
         if (Boolean.TRUE == files) {
-            Iterable<String> documentsIds = CollectionUtils.collect(paginatedList.getResultList(), DocumentDto::getId);
-            FileDao fileDao = new FileDao();
             filesList = fileDao.getByDocumentsIds(documentsIds);
+        } else {
+            filesCountByDocument = fileDao.countByDocumentsIds(documentsIds);
         }
 
         for (DocumentDto documentDto : paginatedList.getResultList()) {
@@ -445,32 +505,26 @@ public class DocumentResource extends BaseResource {
             List<TagDto> tagDtoList = tagDao.findByCriteria(new TagCriteria()
                     .setTargetIdList(getTargetIdList(null))
                     .setDocumentId(documentDto.getId()), new SortCriteria(1, true));
-            JsonArrayBuilder tags = Json.createArrayBuilder();
-            for (TagDto tagDto : tagDtoList) {
-                tags.add(Json.createObjectBuilder()
-                        .add("id", tagDto.getId())
-                        .add("name", tagDto.getName())
-                        .add("color", tagDto.getColor()));
+
+            Long filesCount;
+            Collection<File> filesOfDocument = null;
+            if (Boolean.TRUE == files) {
+                // Find files matching the document
+                filesOfDocument = CollectionUtils.select(filesList, file -> file.getDocumentId().equals(documentDto.getId()));
+                filesCount = (long) filesOfDocument.size();
+            } else {
+                filesCount = filesCountByDocument.getOrDefault(documentDto.getId(), 0L);
             }
 
-            JsonObjectBuilder documentObjectBuilder = Json.createObjectBuilder()
-                    .add("id", documentDto.getId())
-                    .add("highlight", JsonUtil.nullable(documentDto.getHighlight()))
-                    .add("file_id", JsonUtil.nullable(documentDto.getFileId()))
-                    .add("title", documentDto.getTitle())
-                    .add("description", JsonUtil.nullable(documentDto.getDescription()))
-                    .add("create_date", documentDto.getCreateTimestamp())
-                    .add("update_date", documentDto.getUpdateTimestamp())
-                    .add("language", documentDto.getLanguage())
-                    .add("shared", documentDto.getShared())
+            JsonObjectBuilder documentObjectBuilder = createDocumentObjectBuilder(documentDto)
                     .add("active_route", documentDto.isActiveRoute())
                     .add("current_step_name", JsonUtil.nullable(documentDto.getCurrentStepName()))
-                    .add("file_count", documentDto.getFileCount())
-                    .add("tags", tags);
+                    .add("highlight", JsonUtil.nullable(documentDto.getHighlight()))
+                    .add("file_count", filesCount)
+                    .add("tags", createTagsArrayBuilder(tagDtoList));
+
             if (Boolean.TRUE == files) {
                 JsonArrayBuilder filesArrayBuilder = Json.createArrayBuilder();
-                // Find files matching the document
-                Collection<File> filesOfDocument = CollectionUtils.select(filesList, file -> file.getDocumentId().equals(documentDto.getId()));
                 for (File fileDb : filesOfDocument) {
                     filesArrayBuilder.add(RestUtil.fileToJsonObjectBuilder(fileDb));
                 }
@@ -487,188 +541,73 @@ public class DocumentResource extends BaseResource {
         response.add("total", paginatedList.getResultCount())
                 .add("documents", documents)
                 .add("suggestions", suggestions);
-        
+
         return Response.ok().entity(response.build()).build();
     }
-    
+
     /**
-     * Parse a query according to the specified syntax, eg.:
-     * tag:assurance tag:other before:2012 after:2011-09 shared:yes lang:fra thing
+     * Returns all documents.
      *
-     * @param search Search query
-     * @return DocumentCriteria
+     * @api {post} /document/list Get documents
+     * @apiDescription Get documents exposed as a POST endpoint to allow longer search parameters, see the GET endpoint for the API info
+     * @apiName PostDocumentList
+     * @apiGroup Document
+     * @apiVersion 1.12.0
+     *
+     * @param limit      Page limit
+     * @param offset     Page offset
+     * @param sortColumn Sort column
+     * @param asc        Sorting
+     * @param search     Search query
+     * @param files      Files list
+     * @return Response
      */
-    private DocumentCriteria parseSearchQuery(String search) {
-        DocumentCriteria documentCriteria = new DocumentCriteria();
-        if (Strings.isNullOrEmpty(search)) {
-            return documentCriteria;
-        }
-
-        TagDao tagDao = new TagDao();
-        List<TagDto> allTagDtoList = tagDao.findByCriteria(new TagCriteria().setTargetIdList(getTargetIdList(null)), null);
-        UserDao userDao = new UserDao();
-
-        String[] criteriaList = search.split(" +");
-        List<String> query = new ArrayList<>();
-        List<String> fullQuery = new ArrayList<>();
-        for (String criteria : criteriaList) {
-            String[] params = criteria.split(":");
-            if (params.length != 2 || Strings.isNullOrEmpty(params[0]) || Strings.isNullOrEmpty(params[1])) {
-                // This is not a special criteria, do a fulltext search on it
-                fullQuery.add(criteria);
-                continue;
-            }
-            String paramName = params[0];
-            String paramValue = params[1];
-
-            switch (paramName) {
-                case "tag":
-                case "!tag":
-                    // New tag criteria
-                    List<TagDto> tagDtoList = TagUtil.findByName(paramValue, allTagDtoList);
-                    if (tagDtoList.isEmpty()) {
-                        // No tag found, the request must return nothing
-                        documentCriteria.getTagIdList().add(Lists.newArrayList(UUID.randomUUID().toString()));
-                    } else {
-                        List<String> tagIdList = Lists.newArrayList();
-                        for (TagDto tagDto : tagDtoList) {
-                            tagIdList.add(tagDto.getId());
-                            List<TagDto> childrenTagDtoList = TagUtil.findChildren(tagDto, allTagDtoList);
-                            for (TagDto childrenTagDto : childrenTagDtoList) {
-                                tagIdList.add(childrenTagDto.getId());
-                            }
-                        }
-                        if (paramName.startsWith("!")) {
-                            documentCriteria.getExcludedTagIdList().add(tagIdList);
-                        } else {
-                            documentCriteria.getTagIdList().add(tagIdList);
-                        }
-                    }
-                    break;
-                case "after":
-                case "before":
-                case "uafter":
-                case "ubefore":
-                    // New date span criteria
-                    try {
-                        boolean isUpdated = paramName.startsWith("u");
-                        DateTime date = DATE_FORMATTER.parseDateTime(paramValue);
-                        if (paramName.endsWith("before")) {
-                            if (isUpdated) documentCriteria.setUpdateDateMax(date.toDate());
-                            else documentCriteria.setCreateDateMax(date.toDate());
-                        } else {
-                            if (isUpdated) documentCriteria.setUpdateDateMin(date.toDate());
-                            else  documentCriteria.setCreateDateMin(date.toDate());
-                        }
-                    } catch (IllegalArgumentException e) {
-                        // Invalid date, returns no documents
-                        documentCriteria.setCreateDateMin(new Date(0));
-                        documentCriteria.setCreateDateMax(new Date(0));
-                    }
-                    break;
-                case "uat":
-                case "at":
-                    // New specific date criteria
-                    boolean isUpdated = params[0].startsWith("u");
-                    try {
-                        switch (paramValue.length()) {
-                            case 10: {
-                                DateTime date = DATE_FORMATTER.parseDateTime(params[1]);
-                                if (isUpdated) {
-                                    documentCriteria.setUpdateDateMin(date.toDate());
-                                    documentCriteria.setUpdateDateMax(date.plusDays(1).minusSeconds(1).toDate());
-                                } else {
-                                    documentCriteria.setCreateDateMin(date.toDate());
-                                    documentCriteria.setCreateDateMax(date.plusDays(1).minusSeconds(1).toDate());
-                                }
-                                break;
-                            }
-                            case 7: {
-                                DateTime date = MONTH_FORMATTER.parseDateTime(params[1]);
-                                if (isUpdated) {
-                                    documentCriteria.setUpdateDateMin(date.toDate());
-                                    documentCriteria.setUpdateDateMax(date.plusMonths(1).minusSeconds(1).toDate());
-                                } else {
-                                    documentCriteria.setCreateDateMin(date.toDate());
-                                    documentCriteria.setCreateDateMax(date.plusMonths(1).minusSeconds(1).toDate());
-                                }
-                                break;
-                            }
-                            case 4: {
-                                DateTime date = YEAR_FORMATTER.parseDateTime(params[1]);
-                                if (isUpdated) {
-                                    documentCriteria.setUpdateDateMin(date.toDate());
-                                    documentCriteria.setUpdateDateMax(date.plusYears(1).minusSeconds(1).toDate());
-                                } else {
-                                    documentCriteria.setCreateDateMin(date.toDate());
-                                    documentCriteria.setCreateDateMax(date.plusYears(1).minusSeconds(1).toDate());
-                                }
-                                break;
-                            } default: {
-                                // Invalid format, returns no documents
-                                documentCriteria.setCreateDateMin(new Date(0));
-                                documentCriteria.setCreateDateMax(new Date(0));
-                            }
-                        }
-                    } catch (IllegalArgumentException e) {
-                        // Invalid date, returns no documents
-                        documentCriteria.setCreateDateMin(new Date(0));
-                        documentCriteria.setCreateDateMax(new Date(0));
-                    }
-                    break;
-                case "shared":
-                    // New shared state criteria
-                    documentCriteria.setShared(paramValue.equals("yes"));
-                    break;
-                case "lang":
-                    // New language criteria
-                    if (Constants.SUPPORTED_LANGUAGES.contains(paramValue)) {
-                        documentCriteria.setLanguage(paramValue);
-                    } else {
-                        // Unsupported language, returns no documents
-                        documentCriteria.setLanguage(UUID.randomUUID().toString());
-                    }
-                    break;
-                case "mime":
-                    // New mime type criteria
-                    documentCriteria.setMimeType(paramValue);
-                    break;
-                case "by":
-                    // New creator criteria
-                    User user = userDao.getActiveByUsername(paramValue);
-                    if (user == null) {
-                        // This user doesn't exist, return nothing
-                        documentCriteria.setCreatorId(UUID.randomUUID().toString());
-                    } else {
-                        // This user exists, search its documents
-                        documentCriteria.setCreatorId(user.getId());
-                    }
-                    break;
-                case "workflow":
-                    // New shared state criteria
-                    documentCriteria.setActiveRoute(paramValue.equals("me"));
-                    break;
-                case "simple":
-                    // New simple search criteria
-                    query.add(paramValue);
-                    break;
-                case "full":
-                    // New fulltext search criteria
-                    fullQuery.add(paramValue);
-                    break;
-                case "title":
-                    // New title criteria
-                    documentCriteria.setTitle(paramValue);
-                    break;
-                default:
-                    fullQuery.add(criteria);
-                    break;
-            }
-        }
-
-        documentCriteria.setSearch(Joiner.on(" ").join(query));
-        documentCriteria.setFullSearch(Joiner.on(" ").join(fullQuery));
-        return documentCriteria;
+    @POST
+    @Path("list")
+    public Response listPost(
+            @FormParam("limit") Integer limit,
+            @FormParam("offset") Integer offset,
+            @FormParam("sort_column") Integer sortColumn,
+            @FormParam("asc") Boolean asc,
+            @FormParam("search") String search,
+            @FormParam("files") Boolean files,
+            @FormParam("search[after]") String searchCreatedAfter,
+            @FormParam("search[before]") String searchCreatedBefore,
+            @FormParam("search[by]") String searchBy,
+            @FormParam("search[full]") String searchFull,
+            @FormParam("search[lang]") String searchLang,
+            @FormParam("search[mime]") String searchMime,
+            @FormParam("search[shared]") Boolean searchShared,
+            @FormParam("search[simple]") String searchSimple,
+            @FormParam("search[tag]") String searchTag,
+            @FormParam("search[nottag]") String searchTagNot,
+            @FormParam("search[title]") String searchTitle,
+            @FormParam("search[uafter]") String searchUpdatedAfter,
+            @FormParam("search[ubefore]") String searchUpdatedBefore,
+            @FormParam("search[searchworkflow]") String searchWorkflow
+    ) {
+        return list(
+                limit,
+                offset,
+                sortColumn,
+                asc,
+                search,
+                files,
+                searchCreatedAfter,
+                searchCreatedBefore,
+                searchBy,
+                searchFull,
+                searchLang,
+                searchMime,
+                searchShared,
+                searchSimple,
+                searchTag,
+                searchTagNot,
+                searchTitle,
+                searchUpdatedAfter,
+                searchUpdatedBefore,
+                searchWorkflow
+        );
     }
 
     /**
@@ -738,7 +677,7 @@ public class DocumentResource extends BaseResource {
         if (!authenticate()) {
             throw new ForbiddenClientException();
         }
-        
+
         // Validate input data
         title = ValidationUtil.validateLength(title, "title", 1, 100, false);
         language = ValidationUtil.validateLength(language, "language", 3, 7, false);
@@ -802,7 +741,7 @@ public class DocumentResource extends BaseResource {
                 .add("id", document.getId());
         return Response.ok().entity(response.build()).build();
     }
-    
+
     /**
      * Updates the document.
      *
@@ -824,7 +763,7 @@ public class DocumentResource extends BaseResource {
      * @apiParam {String[]} [relations] List of related documents ID
      * @apiParam {String[]} [metadata_id] List of metadata ID
      * @apiParam {String[]} [metadata_value] List of metadata values
-     * @apiParam {String} language Language
+     * @apiParam {String} [language] Language
      * @apiParam {Number} [create_date] Create date (timestamp)
      * @apiSuccess {String} id Document ID
      * @apiError (client) ForbiddenError Access denied or document not writable
@@ -860,7 +799,7 @@ public class DocumentResource extends BaseResource {
         if (!authenticate()) {
             throw new ForbiddenClientException();
         }
-        
+
         // Validate input data
         title = ValidationUtil.validateLength(title, "title", 1, 100, false);
         language = ValidationUtil.validateLength(language, "language", 3, 7, false);
@@ -877,20 +816,20 @@ public class DocumentResource extends BaseResource {
         if (language != null && !Constants.SUPPORTED_LANGUAGES.contains(language)) {
             throw new ClientException("ValidationError", MessageFormat.format("{0} is not a supported language", language));
         }
-        
+
         // Check write permission
         AclDao aclDao = new AclDao();
         if (!aclDao.checkPermission(id, PermType.WRITE, getTargetIdList(null))) {
             throw new ForbiddenClientException();
         }
-        
+
         // Get the document
         DocumentDao documentDao = new DocumentDao();
         Document document = documentDao.getById(id);
         if (document == null) {
             throw new NotFoundException();
         }
-        
+
         // Update the document
         document.setTitle(title);
         document.setDescription(description);
@@ -908,12 +847,12 @@ public class DocumentResource extends BaseResource {
         } else {
             document.setCreateDate(createDate);
         }
-        
+
         documentDao.update(document, principal.getId());
-        
+
         // Update tags
         updateTagList(id, tagList);
-        
+
         // Update relations
         updateRelationList(id, relationList);
 
@@ -929,7 +868,7 @@ public class DocumentResource extends BaseResource {
         documentUpdatedAsyncEvent.setUserId(principal.getId());
         documentUpdatedAsyncEvent.setDocumentId(id);
         ThreadLocalContext.get().addAsyncEvent(documentUpdatedAsyncEvent);
-        
+
         JsonObjectBuilder response = Json.createObjectBuilder()
                 .add("id", id);
         return Response.ok().entity(response.build()).build();
@@ -1064,39 +1003,25 @@ public class DocumentResource extends BaseResource {
             throw new NotFoundException();
         }
         List<File> fileList = fileDao.getByDocumentId(principal.getId(), id);
-        
+
         // Delete the document
         documentDao.delete(id, principal.getId());
 
-        long totalSize = 0L;
         for (File file : fileList) {
-            // Store the file size to update the quota
-            java.nio.file.Path storedFile = DirectoryUtil.getStorageDirectory().resolve(file.getId());
-            try {
-                totalSize += Files.size(storedFile);
-            } catch (IOException e) {
-                // The file doesn't exists on disk, which is weird, but not fatal
-            }
-
             // Raise file deleted event
             FileDeletedAsyncEvent fileDeletedAsyncEvent = new FileDeletedAsyncEvent();
             fileDeletedAsyncEvent.setUserId(principal.getId());
             fileDeletedAsyncEvent.setFileId(file.getId());
+            fileDeletedAsyncEvent.setFileSize(file.getSize());
             ThreadLocalContext.get().addAsyncEvent(fileDeletedAsyncEvent);
         }
-
-        // Update the user quota
-        UserDao userDao = new UserDao();
-        User user = userDao.getById(principal.getId());
-        user.setStorageCurrent(user.getStorageCurrent() - totalSize);
-        userDao.updateQuota(user);
 
         // Raise a document deleted event
         DocumentDeletedAsyncEvent documentDeletedAsyncEvent = new DocumentDeletedAsyncEvent();
         documentDeletedAsyncEvent.setUserId(principal.getId());
         documentDeletedAsyncEvent.setDocumentId(id);
         ThreadLocalContext.get().addAsyncEvent(documentDeletedAsyncEvent);
-        
+
         // Always return OK
         JsonObjectBuilder response = Json.createObjectBuilder()
                 .add("status", "ok");
@@ -1148,5 +1073,28 @@ public class DocumentResource extends BaseResource {
             }
             relationDao.updateRelationList(documentId, documentIdSet);
         }
+    }
+
+    private JsonObjectBuilder createDocumentObjectBuilder(DocumentDto documentDto) {
+        return Json.createObjectBuilder()
+                .add("create_date", documentDto.getCreateTimestamp())
+                .add("description", JsonUtil.nullable(documentDto.getDescription()))
+                .add("file_id", JsonUtil.nullable(documentDto.getFileId()))
+                .add("id", documentDto.getId())
+                .add("language", documentDto.getLanguage())
+                .add("shared", documentDto.getShared())
+                .add("title", documentDto.getTitle())
+                .add("update_date", documentDto.getUpdateTimestamp());
+    }
+
+    private static JsonArrayBuilder createTagsArrayBuilder(List<TagDto> tagDtoList) {
+        JsonArrayBuilder tags = Json.createArrayBuilder();
+        for (TagDto tagDto : tagDtoList) {
+            tags.add(Json.createObjectBuilder()
+                    .add("id", tagDto.getId())
+                    .add("name", tagDto.getName())
+                    .add("color", tagDto.getColor()));
+        }
+        return tags;
     }
 }

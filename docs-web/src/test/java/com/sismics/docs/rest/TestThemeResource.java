@@ -8,11 +8,11 @@ import org.glassfish.jersey.media.multipart.file.StreamDataBodyPart;
 import org.junit.Assert;
 import org.junit.Test;
 
-import javax.json.JsonObject;
-import javax.ws.rs.client.Entity;
-import javax.ws.rs.core.Form;
-import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.Response;
+import jakarta.json.JsonObject;
+import jakarta.ws.rs.client.Entity;
+import jakarta.ws.rs.core.Form;
+import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.Response;
 import java.io.InputStream;
 
 /**
@@ -27,7 +27,7 @@ public class TestThemeResource extends BaseJerseyTest {
     @Test
     public void testThemeResource() throws Exception {
         // Login admin
-        String adminToken = clientUtil.login("admin", "admin", false);
+        String adminToken = adminToken();
 
         // Get the stylesheet anonymously
         String stylesheet = target().path("/theme/stylesheet").request()
@@ -103,5 +103,13 @@ public class TestThemeResource extends BaseJerseyTest {
         // Get the background
         response = target().path("/theme/image/background").request().get();
         Assert.assertEquals(Response.Status.OK.getStatusCode(), response.getStatus());
+
+        // Reset the main color as admin
+        target().path("/theme").request()
+                .cookie(TokenBasedSecurityFilter.COOKIE_NAME, adminToken)
+                .post(Entity.form(new Form()
+                        .param("color", "#ffffff")
+                .param("name", "Teedy")
+                .param("css", "")), JsonObject.class);
     }
 }

@@ -2,7 +2,7 @@ package com.sismics.rest.util;
 
 import com.google.common.base.Strings;
 import com.sismics.rest.exception.ClientException;
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.joda.time.DateTime;
 
 import java.text.MessageFormat;
@@ -21,7 +21,7 @@ public class ValidationUtil {
     
     private static Pattern ALPHANUMERIC_PATTERN = Pattern.compile("[a-zA-Z0-9_]+");
     
-    private static Pattern USERNAME_PATTERN = Pattern.compile("[a-zA-Z0-9_@\\.]+");
+    private static Pattern USERNAME_PATTERN = Pattern.compile("[a-zA-Z0-9_@.-]+");
     
     /**
      * Checks that the argument is not null.

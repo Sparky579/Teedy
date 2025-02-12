@@ -25,7 +25,7 @@
     "message": "Please enter a new password",
     "submit": "Change my password",
     "error_title": "Error changing your password",
-    "error_message": "Your password recovery request is expired, please ask a new one on the login page"
+    "error_message": "Your password recovery request is expired, please ask for a new one on the login page"
   },
   "index": {
     "toggle_navigation": "Toggle navigation",
@@ -286,6 +286,7 @@
       "enabled": "Enable LDAP authentication",
       "host": "LDAP hostname",
       "port": "LDAP port (389 by default)",
+      "usessl": "Enable SSL (ldaps)",
       "admin_dn": "Admin DN",
       "admin_password": "Admin password",
       "base_dn": "Base search DN",
@@ -360,7 +361,7 @@
       "message_2": "Those applications automatically generate a validation code that changes after a certain period of time.<br/>You will be required to enter this validation code each time you login on <strong>{{ appName }}</strong>.",
       "secret_key": "Your secret key is: <strong>{{ secret }}</strong>",
       "secret_key_warning": "Configure your TOTP app on your phone with this secret key now, you will not be able to access it later.",
-      "totp_enabled_message": "Two-factor authentication is enabled on your account.<br/>Each time you login on <strong>{{ appName }}</strong>, you will be asked a validation code from your configured phone app.<br/>If you lose your phone, you will not be able to login into your account but active sessions will allow you to regenerate a secrey key.",
+      "totp_enabled_message": "Two-factor authentication is enabled on your account.<br/>Each time you login on <strong>{{ appName }}</strong>, you will be asked for a validation code from your configured phone app.<br/>If you lose your phone, you will not be able to login into your account but active sessions will allow you to regenerate a secrey key.",
       "disable_totp": {
         "disable_totp": "Disable two-factor authentication",
         "message": "Your account will not be protected by the two-factor authentication anymore.",
@@ -420,6 +421,10 @@
       "smtp_username": "SMTP username",
       "smtp_password": "SMTP password",
       "smtp_updated": "SMTP configuration updated successfully",
+      "title_ocr": "Optical Character Recognition (OCR)",
+      "message_ocr": "OCR is a feature that extracts text from images and PDF files. This feature requires a working Tesseract installation on the server.",
+      "enable_ocr": "Enable OCR",
+      "disable_ocr": "Disable OCR",
       "webhooks": "Webhooks",
       "webhooks_explain": "Webhooks will be called when the specified event occur. The given URL will be POST-ed with a JSON payload containing the event name and the ID of the concerned resource.",
       "webhook_event": "Event",
@@ -439,6 +444,7 @@
       "enabled": "Enable inbox scanning",
       "hostname": "IMAP hostname",
       "port": "IMAP port (143 or 993)",
+      "starttls": "Enable STARTTLS",
       "username": "IMAP username",
       "password": "IMAP password",
       "folder": "IMAP folder",
@@ -509,7 +515,7 @@
     "error_general": "An error occurred while trying to import your file, please make sure it is a valid EML file"
   },
   "app_share": {
-    "main": "Ask a shared document link to access it",
+    "main": "Ask for a shared document link to access it",
     "403": {
       "title": "Not authorized",
       "message": "The document you are trying to view is not shared anymore"

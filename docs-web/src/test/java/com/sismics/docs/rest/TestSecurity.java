@@ -1,15 +1,15 @@
 package com.sismics.docs.rest;
 
-import javax.json.JsonObject;
-import javax.ws.rs.client.Entity;
-import javax.ws.rs.core.Form;
-import javax.ws.rs.core.Response;
-import javax.ws.rs.core.Response.Status;
+import jakarta.json.JsonObject;
+import jakarta.ws.rs.client.Entity;
+import jakarta.ws.rs.core.Form;
+import jakarta.ws.rs.core.Response;
+import jakarta.ws.rs.core.Response.Status;
 
 import com.sismics.util.filter.HeaderBasedSecurityFilter;
 import org.junit.Assert;
 
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.junit.Test;
 
 import com.sismics.util.filter.TokenBasedSecurityFilter;
@@ -73,6 +73,12 @@ public class TestSecurity extends BaseJerseyTest {
 
         // User testsecurity logs out
         clientUtil.logout(testSecurityToken);
+
+        // Delete the user
+        String adminToken = adminToken();
+        target().path("/user/testsecurity").request()
+                .cookie(TokenBasedSecurityFilter.COOKIE_NAME, adminToken)
+                .delete();
     }
 
     @Test
@@ -98,5 +104,11 @@ public class TestSecurity extends BaseJerseyTest {
                 .header(HeaderBasedSecurityFilter.AUTHENTICATED_USER_HEADER, "idontexist")
                 .get()
                 .getStatus());
+        
+        // Delete the user
+        String adminToken = adminToken();
+        target().path("/user/header_auth_test").request()
+                .cookie(TokenBasedSecurityFilter.COOKIE_NAME, adminToken)
+                .delete();
     }
 }

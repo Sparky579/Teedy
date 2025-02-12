@@ -3,6 +3,7 @@
 </h3>
 
 [![License: GPL v2](https://img.shields.io/badge/License-GPL%20v2-blue.svg)](https://www.gnu.org/licenses/old-licenses/gpl-2.0.en.html)
+[![Maven CI/CD](https://github.com/sismics/docs/actions/workflows/build-deploy.yml/badge.svg)](https://github.com/sismics/docs/actions/workflows/build-deploy.yml)
 
 Teedy is an open source, lightweight document management system for individuals and businesses.
 
@@ -69,33 +70,7 @@ sudo apt install \
   grunt \
   maven \
   npm \
-  tesseract-ocr \
-  tesseract-ocr-ara \
-  tesseract-ocr-ces \
-  tesseract-ocr-chi-sim \
-  tesseract-ocr-chi-tra \
-  tesseract-ocr-dan \
-  tesseract-ocr-deu \
-  tesseract-ocr-fin \
-  tesseract-ocr-fra \
-  tesseract-ocr-heb \
-  tesseract-ocr-hin \
-  tesseract-ocr-hun \
-  tesseract-ocr-ita \
-  tesseract-ocr-jpn \
-  tesseract-ocr-kor \
-  tesseract-ocr-lav \
-  tesseract-ocr-nld \
-  tesseract-ocr-nor \
-  tesseract-ocr-pol \
-  tesseract-ocr-por \
-  tesseract-ocr-rus \
-  tesseract-ocr-spa \
-  tesseract-ocr-swe \
-  tesseract-ocr-tha \
-  tesseract-ocr-tur \
-  tesseract-ocr-ukr \
-  tesseract-ocr-vie
+  tesseract-ocr-all
 ```
 
 ### Mac

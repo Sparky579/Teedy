@@ -4,13 +4,16 @@ import com.sismics.docs.core.constant.AuditLogType;
 import com.sismics.docs.core.model.jpa.File;
 import com.sismics.docs.core.util.AuditLogUtil;
 import com.sismics.util.context.ThreadLocalContext;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.NoResultException;
+import jakarta.persistence.Query;
+import jakarta.persistence.TypedQuery;
 
-import javax.persistence.EntityManager;
-import javax.persistence.NoResultException;
-import javax.persistence.TypedQuery;
 import java.util.Collections;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -160,6 +163,7 @@ public class FileDao {
         fileDb.setMimeType(file.getMimeType());
         fileDb.setVersionId(file.getVersionId());
         fileDb.setLatestVersion(file.isLatestVersion());
+        fileDb.setSize(file.getSize());
 
         return file;
     }
@@ -213,6 +217,24 @@ public class FileDao {
     }
 
     /**
+     * Get files count by documents IDs.
+     *
+     * @param documentIds Documents IDs
+     * @return the number of files per document id
+     */
+    public Map<String, Long> countByDocumentsIds(Iterable<String> documentIds) {
+        EntityManager em = ThreadLocalContext.get().getEntityManager();
+        Query q = em.createQuery("select f.documentId, count(*) from File f where f.documentId in :documentIds and f.latestVersion = true and f.deleteDate is null group by (f.documentId)");
+        q.setParameter("documentIds", documentIds);
+        Map<String, Long> result = new HashMap<>();
+        q.getResultList().forEach(o -> {
+            Object[] resultLine = (Object[]) o;
+            result.put((String) resultLine[0], (Long) resultLine[1]);
+        });
+        return result;
+    }
+
+    /**
      * Get all files from a version.
      *
      * @param versionId Version ID
@@ -222,6 +244,14 @@ public class FileDao {
         EntityManager em = ThreadLocalContext.get().getEntityManager();
         TypedQuery<File> q = em.createQuery("select f from File f where f.versionId = :versionId and f.deleteDate is null order by f.order asc", File.class);
         q.setParameter("versionId", versionId);
+        return q.getResultList();
+    }
+
+    public List<File> getFilesWithUnknownSize(int limit) {
+        EntityManager em = ThreadLocalContext.get().getEntityManager();
+        TypedQuery<File> q = em.createQuery("select f from File f where f.size = :size and f.deleteDate is null order by f.order asc", File.class);
+        q.setParameter("size", File.UNKNOWN_SIZE);
+        q.setMaxResults(limit);
         return q.getResultList();
     }
 }

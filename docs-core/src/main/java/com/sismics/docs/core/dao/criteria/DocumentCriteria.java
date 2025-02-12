@@ -19,7 +19,7 @@ public class DocumentCriteria {
     /**
      * Search query.
      */
-    private String search;
+    private String simpleSearch;
     
     /**
      * Full content search query.
@@ -84,9 +84,9 @@ public class DocumentCriteria {
     private String mimeType;
 
     /**
-     * The title.
+     * Titles to include.
      */
-    private String title;
+    private List<String> titleList = new ArrayList<>();
 
     public List<String> getTargetIdList() {
         return targetIdList;
@@ -96,12 +96,12 @@ public class DocumentCriteria {
         this.targetIdList = targetIdList;
     }
 
-    public String getSearch() {
-        return search;
+    public String getSimpleSearch() {
+        return simpleSearch;
     }
 
-    public void setSearch(String search) {
-        this.search = search;
+    public void setSimpleSearch(String search) {
+        this.simpleSearch = search;
     }
 
     public String getFullSearch() {
@@ -192,11 +192,7 @@ public class DocumentCriteria {
         this.mimeType = mimeType;
     }
 
-    public String getTitle() {
-        return title;
-    }
-
-    public void setTitle(String title) {
-        this.title = title;
+    public List<String> getTitleList() {
+        return titleList;
     }
 }

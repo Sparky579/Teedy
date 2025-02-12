@@ -30,16 +30,16 @@ import com.sismics.util.context.ThreadLocalContext;
 import com.sismics.util.filter.TokenBasedSecurityFilter;
 import com.sismics.util.totp.GoogleAuthenticator;
 import com.sismics.util.totp.GoogleAuthenticatorKey;
-import org.apache.commons.lang.StringUtils;
+import jakarta.json.Json;
+import jakarta.json.JsonArrayBuilder;
+import jakarta.json.JsonObjectBuilder;
+import jakarta.servlet.http.Cookie;
+import jakarta.ws.rs.*;
+import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.NewCookie;
+import jakarta.ws.rs.core.Response;
+import org.apache.commons.lang3.StringUtils;
 
-import javax.json.Json;
-import javax.json.JsonArrayBuilder;
-import javax.json.JsonObjectBuilder;
-import javax.servlet.http.Cookie;
-import javax.ws.rs.*;
-import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.NewCookie;
-import javax.ws.rs.core.Response;
 import java.util.Date;
 import java.util.List;
 import java.util.Set;
@@ -195,7 +195,7 @@ public class UserResource extends BaseResource {
      * @return Response
      */
     @POST
-    @Path("{username: [a-zA-Z0-9_@\\.]+}")
+    @Path("{username: [a-zA-Z0-9_@.-]+}")
     public Response update(
         @PathParam("username") String username,
         @FormParam("password") String password,
@@ -253,39 +253,6 @@ public class UserResource extends BaseResource {
         // Always return OK
         JsonObjectBuilder response = Json.createObjectBuilder()
                 .add("status", "ok");
-        return Response.ok().entity(response.build()).build();
-    }
-
-    /**
-     * Checks if a username is available.
-     * Search only on active accounts.
-     *
-     * @api {get} /user/check_username Check username availability
-     * @apiName GetUserCheckUsername
-     * @apiGroup User
-     * @apiParam {String} username Username
-     * @apiSuccess {String} status Status OK or KO
-     * @apiPermission none
-     * @apiVersion 1.5.0
-     *
-     * @param username Username to check
-     * @return Response
-     */
-    @GET
-    @Path("check_username")
-    public Response checkUsername(
-        @QueryParam("username") String username) {
-        UserDao userDao = new UserDao();
-        User user = userDao.getActiveByUsername(username);
-        
-        JsonObjectBuilder response = Json.createObjectBuilder();
-        if (user != null) {
-            response.add("status", "ko")
-                    .add("message", "Username already registered");
-        } else {
-            response.add("status", "ok");
-        }
-        
         return Response.ok().entity(response.build()).build();
     }
 
@@ -470,22 +437,8 @@ public class UserResource extends BaseResource {
         UserDao userDao = new UserDao();
         userDao.delete(principal.getName(), principal.getId());
         
-        // Raise deleted events for documents
-        for (Document document : documentList) {
-            DocumentDeletedAsyncEvent documentDeletedAsyncEvent = new DocumentDeletedAsyncEvent();
-            documentDeletedAsyncEvent.setUserId(principal.getId());
-            documentDeletedAsyncEvent.setDocumentId(document.getId());
-            ThreadLocalContext.get().addAsyncEvent(documentDeletedAsyncEvent);
-        }
-        
-        // Raise deleted events for files (don't bother sending document updated event)
-        for (File file : fileList) {
-            FileDeletedAsyncEvent fileDeletedAsyncEvent = new FileDeletedAsyncEvent();
-            fileDeletedAsyncEvent.setUserId(principal.getId());
-            fileDeletedAsyncEvent.setFileId(file.getId());
-            ThreadLocalContext.get().addAsyncEvent(fileDeletedAsyncEvent);
-        }
-        
+        sendDeletionEvents(documentList, fileList);
+
         // Always return OK
         JsonObjectBuilder response = Json.createObjectBuilder()
                 .add("status", "ok");
@@ -511,7 +464,7 @@ public class UserResource extends BaseResource {
      * @return Response
      */
     @DELETE
-    @Path("{username: [a-zA-Z0-9_@\\.]+}")
+    @Path("{username: [a-zA-Z0-9_@.-]+}")
     public Response delete(@PathParam("username") String username) {
         if (!authenticate()) {
             throw new ForbiddenClientException();
@@ -551,23 +504,9 @@ public class UserResource extends BaseResource {
         
         // Delete the user
         userDao.delete(user.getUsername(), principal.getId());
-        
-        // Raise deleted events for documents
-        for (Document document : documentList) {
-            DocumentDeletedAsyncEvent documentDeletedAsyncEvent = new DocumentDeletedAsyncEvent();
-            documentDeletedAsyncEvent.setUserId(principal.getId());
-            documentDeletedAsyncEvent.setDocumentId(document.getId());
-            ThreadLocalContext.get().addAsyncEvent(documentDeletedAsyncEvent);
-        }
-        
-        // Raise deleted events for files (don't bother sending document updated event)
-        for (File file : fileList) {
-            FileDeletedAsyncEvent fileDeletedAsyncEvent = new FileDeletedAsyncEvent();
-            fileDeletedAsyncEvent.setUserId(principal.getId());
-            fileDeletedAsyncEvent.setFileId(file.getId());
-            ThreadLocalContext.get().addAsyncEvent(fileDeletedAsyncEvent);
-        }
-        
+
+        sendDeletionEvents(documentList, fileList);
+
         // Always return OK
         JsonObjectBuilder response = Json.createObjectBuilder()
                 .add("status", "ok");
@@ -591,7 +530,7 @@ public class UserResource extends BaseResource {
      * @return Response
      */
     @POST
-    @Path("{username: [a-zA-Z0-9_@\\.]+}/disable_totp")
+    @Path("{username: [a-zA-Z0-9_@.-]+}/disable_totp")
     public Response disableTotpUsername(@PathParam("username") String username) {
         if (!authenticate()) {
             throw new ForbiddenClientException();
@@ -713,7 +652,7 @@ public class UserResource extends BaseResource {
      * @return Response
      */
     @GET
-    @Path("{username: [a-zA-Z0-9_@\\.]+}")
+    @Path("{username: [a-zA-Z0-9_@.-]+}")
     @Produces(MediaType.APPLICATION_JSON)
     public Response view(@PathParam("username") String username) {
         if (!authenticate()) {
@@ -1178,4 +1117,29 @@ public class UserResource extends BaseResource {
         }
         return null;
     }
+
+    /**
+     * Send the events about documents and files being deleted.
+     * @param documentList A document list
+     * @param fileList A file list
+     */
+    private void sendDeletionEvents(List<Document> documentList, List<File> fileList) {
+        // Raise deleted events for documents
+        for (Document document : documentList) {
+            DocumentDeletedAsyncEvent documentDeletedAsyncEvent = new DocumentDeletedAsyncEvent();
+            documentDeletedAsyncEvent.setUserId(principal.getId());
+            documentDeletedAsyncEvent.setDocumentId(document.getId());
+            ThreadLocalContext.get().addAsyncEvent(documentDeletedAsyncEvent);
+        }
+
+        // Raise deleted events for files (don't bother sending document updated event)
+        for (File file : fileList) {
+            FileDeletedAsyncEvent fileDeletedAsyncEvent = new FileDeletedAsyncEvent();
+            fileDeletedAsyncEvent.setUserId(principal.getId());
+            fileDeletedAsyncEvent.setFileId(file.getId());
+            fileDeletedAsyncEvent.setFileSize(file.getSize());
+            ThreadLocalContext.get().addAsyncEvent(fileDeletedAsyncEvent);
+        }
+    }
+
 }

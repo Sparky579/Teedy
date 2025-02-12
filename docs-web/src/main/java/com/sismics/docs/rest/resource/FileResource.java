@@ -30,15 +30,15 @@ import com.sismics.util.mime.MimeType;
 import org.glassfish.jersey.media.multipart.FormDataBodyPart;
 import org.glassfish.jersey.media.multipart.FormDataParam;
 
-import javax.json.Json;
-import javax.json.JsonArrayBuilder;
-import javax.json.JsonObjectBuilder;
-import javax.ws.rs.*;
-import javax.ws.rs.core.HttpHeaders;
-import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.Response;
-import javax.ws.rs.core.Response.Status;
-import javax.ws.rs.core.StreamingOutput;
+import jakarta.json.Json;
+import jakarta.json.JsonArrayBuilder;
+import jakarta.json.JsonObjectBuilder;
+import jakarta.ws.rs.*;
+import jakarta.ws.rs.core.HttpHeaders;
+import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.Response;
+import jakarta.ws.rs.core.Response.Status;
+import jakarta.ws.rs.core.StreamingOutput;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URISyntaxException;
@@ -67,8 +67,8 @@ public class FileResource extends BaseResource {
      * This resource accepts only multipart/form-data.
      * @apiName PutFile
      * @apiGroup File
-     * @apiParam {String} id Document ID
-     * @apiParam {String} previousFileId ID of the file to replace by this new version
+     * @apiParam {String} [id] Document ID
+     * @apiParam {String} [previousFileId] ID of the file to replace by this new version
      * @apiParam {String} file File data
      * @apiSuccess {String} status Status OK
      * @apiSuccess {String} id File ID
@@ -390,8 +390,8 @@ public class FileResource extends BaseResource {
      * @api {get} /file/list Get files
      * @apiName GetFileList
      * @apiGroup File
-     * @apiParam {String} id Document ID
-     * @apiParam {String} share Share ID
+     * @apiParam {String} [id] Document ID
+     * @apiParam {String} [share] Share ID
      * @apiSuccess {Object[]} files List of files
      * @apiSuccess {String} files.id ID
      * @apiSuccess {String} files.processing True if the file is currently processing
@@ -442,7 +442,7 @@ public class FileResource extends BaseResource {
     /**
      * List all versions of a file.
      *
-     * @api {get} /file/id/versions Get versions of a file
+     * @api {get} /file/:id/versions Get versions of a file
      * @apiName GetFileVersions
      * @apiGroup File
      * @apiParam {String} id File ID
@@ -497,7 +497,6 @@ public class FileResource extends BaseResource {
      * @apiName DeleteFile
      * @apiGroup File
      * @apiParam {String} id File ID
-     * @apiParam {String} share Share ID
      * @apiSuccess {String} status Status OK
      * @apiError (client) ForbiddenError Access denied
      * @apiError (client) NotFound File or document not found
@@ -522,21 +521,11 @@ public class FileResource extends BaseResource {
         FileDao fileDao = new FileDao();
         fileDao.delete(file.getId(), principal.getId());
         
-        // Update the user quota
-        UserDao userDao = new UserDao();
-        User user = userDao.getById(principal.getId());
-        java.nio.file.Path storedFile = DirectoryUtil.getStorageDirectory().resolve(id);
-        try {
-            user.setStorageCurrent(user.getStorageCurrent() - Files.size(storedFile));
-            userDao.updateQuota(user);
-        } catch (IOException e) {
-            // The file doesn't exists on disk, which is weird, but not fatal
-        }
-        
         // Raise a new file deleted event
         FileDeletedAsyncEvent fileDeletedAsyncEvent = new FileDeletedAsyncEvent();
         fileDeletedAsyncEvent.setUserId(principal.getId());
         fileDeletedAsyncEvent.setFileId(file.getId());
+        fileDeletedAsyncEvent.setFileSize(file.getSize());
         ThreadLocalContext.get().addAsyncEvent(fileDeletedAsyncEvent);
         
         if (file.getDocumentId() != null) {

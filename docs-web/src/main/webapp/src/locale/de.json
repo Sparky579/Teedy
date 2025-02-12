@@ -278,8 +278,23 @@
     "menu_vocabularies": "Vokabulareinträge",
     "menu_configuration": "Einstellungen",
     "menu_inbox": "Posteingang durchsuchen",
+    "menu_ldap": "LDAP Authentifizierung",
     "menu_metadata": "Benutzerdefinierte Metadaten",
     "menu_monitoring": "Überwachung",
+    "ldap": {
+      "title": "LDAP Authentifizierung",
+      "enabled": "LDAP Authentifizierung aktivieren",
+      "host": "LDAP Hostname",
+      "port": "LDAP Port (standardmäßig 389)",
+      "usessl": "Aktiviere SSL (ldaps)",
+      "admin_dn": "Admin DN",
+      "admin_password": "Admin Passwort",
+      "base_dn": "Basis-Such-DN",
+      "filter": "Suchfilter (muss USERNAME enthalten, zum Beispiel \"(uid=USERNAME)\")",
+      "default_email": "Standard-E-Mail für LDAP-Benutzer",
+      "default_storage": "Standard Quota für LDAP-Benutzer",
+      "saved": "LDAP-Konfiguration erfolgreich gespeichert"
+    },
     "user": {
       "title": "Benutzerverwaltung",
       "add_user": "Benutzer hinzufügen",
@@ -406,6 +421,10 @@
       "smtp_username": "SMTP-Benutzername",
       "smtp_password": "SMTP-Passwort",
       "smtp_updated": "SMTP-Konfiguration erfolgreich aktualisiert",
+      "title_ocr": "Texterkennung (OCR)",
+      "message_ocr": "OCR ist eine Technologie, die es ermöglicht, Text aus Bildern zu extrahieren. Es wird verwendet, um den Inhalt von Bildern zu durchsuchen und zu indizieren. Diese Funktionalität setzt voraus, dass die Tesseract auf Ihrem Server installiert ist.",
+      "enable_ocr": "OCR aktivieren",
+      "disable_ocr": "OCR deaktivieren",
       "webhooks": "Webhooks",
       "webhooks_explain": "Webhooks werden aufgerufen, wenn das angegebene Ereignis eintritt. Die angegebene URL wird mit einer JSON-Payload gepostet, die den Ereignisnamen und die ID der betreffenden Ressource enthält.",
       "webhook_event": "Ereignisse",
@@ -425,6 +444,7 @@
       "enabled": "Durchsuchen des Posteingangs aktivieren",
       "hostname": "IMAP-Server",
       "port": "IMAP-Port (143 oder 993)",
+      "starttls": "Verwende STARTTLS",
       "username": "IMAP-Benutzername",
       "password": "IMAP-Passwort",
       "folder": "IMAP-Ordner",
@@ -433,7 +453,9 @@
       "last_sync": "Letzte Synchronisation: {{ data.date | date: 'medium' }}, {{ data.count }} {{ data.count > 1 ? 'E-Mails' : 'E-Mail' }} importiert",
       "test_success": "Die Verbindung zum Posteingang war erfolgreich ({{ count }} <strong>ungelesene</strong> {{ count > 1 ? 'Nachrichten' : 'Nachricht' }})",
       "test_fail": "Beim Verbinden mit dem Posteingang ist ein Fehler aufgetreten, bitte überprüfen Sie die Einstellungen",
-      "saved": "IMAP-Konfiguration erfolgreich gespeichert"
+      "saved": "IMAP-Konfiguration erfolgreich gespeichert",
+      "autoTagsEnabled": "Automatisches Hinzufügen von Tags aus der mit # markierten Betreffzeile",
+      "deleteImported": "Importierte Nachrichten aus Mailbox löschen"
     },
     "monitoring": {
       "background_tasks": "Hintergrundaufgaben",

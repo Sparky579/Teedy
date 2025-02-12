@@ -4,11 +4,11 @@ import com.sismics.util.filter.TokenBasedSecurityFilter;
 import org.junit.Assert;
 import org.junit.Test;
 
-import javax.json.JsonArray;
-import javax.json.JsonObject;
-import javax.ws.rs.client.Entity;
-import javax.ws.rs.core.Form;
-import javax.ws.rs.core.Response;
+import jakarta.json.JsonArray;
+import jakarta.json.JsonObject;
+import jakarta.ws.rs.client.Entity;
+import jakarta.ws.rs.core.Form;
+import jakarta.ws.rs.core.Response;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -25,7 +25,7 @@ public class TestGroupResource extends BaseJerseyTest {
     @Test
     public void testGroupResource() {
         // Login admin
-        String adminToken = clientUtil.login("admin", "admin", false);
+        String adminToken = adminToken();
         
         // Create group hierarchy
         clientUtil.createGroup("g1");
@@ -188,5 +188,25 @@ public class TestGroupResource extends BaseJerseyTest {
         Assert.assertEquals(2, groups.size());
         Assert.assertTrue(groupList.contains("g11"));
         Assert.assertTrue(groupList.contains("g112"));
+
+        // Delete all remaining groups and users
+        target().path("/group/g11").request()
+                .cookie(TokenBasedSecurityFilter.COOKIE_NAME, adminToken)
+                .delete(JsonObject.class);
+        target().path("/group/g12new").request()
+                .cookie(TokenBasedSecurityFilter.COOKIE_NAME, adminToken)
+                .delete(JsonObject.class);
+        target().path("/group/g111").request()
+                .cookie(TokenBasedSecurityFilter.COOKIE_NAME, adminToken)
+                .delete(JsonObject.class);
+        target().path("/group/g112").request()
+                .cookie(TokenBasedSecurityFilter.COOKIE_NAME, adminToken)
+                .delete(JsonObject.class);
+        target().path("/user/group1").request()
+                .cookie(TokenBasedSecurityFilter.COOKIE_NAME, adminToken)
+                .delete();
+        target().path("/user/admin2").request()
+                .cookie(TokenBasedSecurityFilter.COOKIE_NAME, adminToken)
+                .delete();
     }
 }

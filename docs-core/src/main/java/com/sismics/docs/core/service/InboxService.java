@@ -1,14 +1,11 @@
 package com.sismics.docs.core.service;
 
-import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.AbstractScheduledService;
 import com.sismics.docs.core.constant.ConfigType;
 import com.sismics.docs.core.dao.TagDao;
 import com.sismics.docs.core.dao.criteria.TagCriteria;
 import com.sismics.docs.core.dao.dto.TagDto;
 import com.sismics.docs.core.event.DocumentCreatedAsyncEvent;
-import com.sismics.docs.core.model.jpa.Config;
 import com.sismics.docs.core.model.jpa.Document;
 import com.sismics.docs.core.model.jpa.Tag;
 import com.sismics.docs.core.util.ConfigUtil;
@@ -18,7 +15,7 @@ import com.sismics.docs.core.util.TransactionUtil;
 import com.sismics.docs.core.util.jpa.SortCriteria;
 import com.sismics.util.EmailUtil;
 import com.sismics.util.context.ThreadLocalContext;
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -159,6 +156,7 @@ public class InboxService extends AbstractScheduledService {
         String port = ConfigUtil.getConfigStringValue(ConfigType.INBOX_PORT);
         properties.put("mail.imap.host", ConfigUtil.getConfigStringValue(ConfigType.INBOX_HOSTNAME));
         properties.put("mail.imap.port", port);
+        properties.setProperty("mail.imap.starttls.enable", ConfigUtil.getConfigStringValue(ConfigType.INBOX_STARTTLS).toString());
         boolean isSsl = "993".equals(port);
         properties.put("mail.imap.ssl.enable", String.valueOf(isSsl));
         properties.setProperty("mail.imap.socketFactory.class",

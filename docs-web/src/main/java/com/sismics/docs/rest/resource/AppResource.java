@@ -14,7 +14,6 @@ import com.sismics.docs.core.model.jpa.File;
 import com.sismics.docs.core.service.InboxService;
 import com.sismics.docs.core.util.ConfigUtil;
 import com.sismics.docs.core.util.DirectoryUtil;
-import com.sismics.docs.core.util.authentication.LdapAuthenticationHandler;
 import com.sismics.docs.core.util.jpa.PaginatedList;
 import com.sismics.docs.core.util.jpa.PaginatedLists;
 import com.sismics.docs.rest.constant.BaseFunction;
@@ -27,19 +26,19 @@ import com.sismics.util.context.ThreadLocalContext;
 import com.sismics.util.log4j.LogCriteria;
 import com.sismics.util.log4j.LogEntry;
 import com.sismics.util.log4j.MemoryAppender;
-import org.apache.commons.lang.StringUtils;
+import jakarta.json.Json;
+import jakarta.json.JsonArrayBuilder;
+import jakarta.json.JsonObjectBuilder;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.Query;
+import jakarta.ws.rs.*;
+import jakarta.ws.rs.core.Response;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.log4j.Appender;
 import org.apache.log4j.Level;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.json.Json;
-import javax.json.JsonArrayBuilder;
-import javax.json.JsonObjectBuilder;
-import javax.persistence.EntityManager;
-import javax.persistence.Query;
-import javax.ws.rs.*;
-import javax.ws.rs.core.Response;
 import java.io.IOException;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
@@ -48,7 +47,7 @@ import java.util.*;
 
 /**
  * General app REST resource.
- * 
+ *
  * @author jtremeaux
  */
 @Path("/app")
@@ -57,11 +56,11 @@ public class AppResource extends BaseResource {
      * Logger.
      */
     private static final Logger log = LoggerFactory.getLogger(AppResource.class);
-    
+
     /**
-     * Returns informations about the application.
+     * Returns information about the application.
      *
-     * @api {get} /app Get application informations
+     * @api {get} /app Get application information
      * @apiName GetApp
      * @apiGroup App
      * @apiSuccess {String} current_version API current version
@@ -86,6 +85,7 @@ public class AppResource extends BaseResource {
         String currentVersion = configBundle.getString("api.current_version");
         String minVersion = configBundle.getString("api.min_version");
         Boolean guestLogin = ConfigUtil.getConfigBooleanValue(ConfigType.GUEST_LOGIN);
+        Boolean ocrEnabled = ConfigUtil.getConfigBooleanValue(ConfigType.OCR_ENABLED, true);
         String defaultLanguage = ConfigUtil.getConfigStringValue(ConfigType.DEFAULT_LANGUAGE);
         UserDao userDao = new UserDao();
         DocumentDao documentDao = new DocumentDao();
@@ -99,6 +99,7 @@ public class AppResource extends BaseResource {
                 .add("current_version", currentVersion.replace("-SNAPSHOT", ""))
                 .add("min_version", minVersion)
                 .add("guest_login", guestLogin)
+                .add("ocr_enabled", ocrEnabled)
                 .add("default_language", defaultLanguage)
                 .add("queued_tasks", AppContext.getInstance().getQueuedTaskCount())
                 .add("total_memory", Runtime.getRuntime().totalMemory())
@@ -137,6 +138,34 @@ public class AppResource extends BaseResource {
 
         ConfigDao configDao = new ConfigDao();
         configDao.update(ConfigType.GUEST_LOGIN, enabled.toString());
+
+        return Response.ok().build();
+    }
+
+    /**
+     * Enable/disable OCR.
+     *
+     * @api {post} /app/ocr Enable/disable OCR
+     * @apiName PostAppOcr
+     * @apiGroup App
+     * @apiParam {Boolean} enabled If true, enable OCR
+     * @apiError (client) ForbiddenError Access denied
+     * @apiPermission admin
+     * @apiVersion 1.5.0
+     *
+     * @param enabled If true, enable OCR
+     * @return Response
+     */
+    @POST
+    @Path("ocr")
+    public Response ocr(@FormParam("enabled") Boolean enabled) {
+        if (!authenticate()) {
+            throw new ForbiddenClientException();
+        }
+        checkBaseFunction(BaseFunction.ADMIN);
+
+        ConfigDao configDao = new ConfigDao();
+        configDao.update(ConfigType.OCR_ENABLED, enabled.toString());
 
         return Response.ok().build();
     }
@@ -241,7 +270,7 @@ public class AppResource extends BaseResource {
 
         return Response.ok().entity(response.build()).build();
     }
-    
+
     /**
      * Configure the SMTP server.
      *
@@ -334,6 +363,7 @@ public class AppResource extends BaseResource {
         Boolean deleteImported = ConfigUtil.getConfigBooleanValue(ConfigType.INBOX_DELETE_IMPORTED);
         Config hostnameConfig = configDao.getById(ConfigType.INBOX_HOSTNAME);
         Config portConfig = configDao.getById(ConfigType.INBOX_PORT);
+        Boolean starttls = ConfigUtil.getConfigBooleanValue(ConfigType.INBOX_STARTTLS);
         Config usernameConfig = configDao.getById(ConfigType.INBOX_USERNAME);
         Config passwordConfig = configDao.getById(ConfigType.INBOX_PASSWORD);
         Config folderConfig = configDao.getById(ConfigType.INBOX_FOLDER);
@@ -353,6 +383,7 @@ public class AppResource extends BaseResource {
         } else {
             response.add("port", Integer.valueOf(portConfig.getValue()));
         }
+        response.add("starttls", starttls);
         if (usernameConfig == null) {
             response.addNull("username");
         } else {
@@ -425,6 +456,7 @@ public class AppResource extends BaseResource {
                                 @FormParam("deleteImported") Boolean deleteImported,
                                 @FormParam("hostname") String hostname,
                                 @FormParam("port") String portStr,
+                                @FormParam("starttls") Boolean starttls,
                                 @FormParam("username") String username,
                                 @FormParam("password") String password,
                                 @FormParam("folder") String folder,
@@ -439,6 +471,7 @@ public class AppResource extends BaseResource {
         if (!Strings.isNullOrEmpty(portStr)) {
             ValidationUtil.validateInteger(portStr, "port");
         }
+        ValidationUtil.validateRequired(starttls, "starttls");
 
         // Just update the changed configuration
         ConfigDao configDao = new ConfigDao();
@@ -451,6 +484,7 @@ public class AppResource extends BaseResource {
         if (!Strings.isNullOrEmpty(portStr)) {
             configDao.update(ConfigType.INBOX_PORT, portStr);
         }
+        configDao.update(ConfigType.INBOX_STARTTLS, starttls.toString());
         if (!Strings.isNullOrEmpty(username)) {
             configDao.update(ConfigType.INBOX_USERNAME, username);
         }
@@ -542,13 +576,13 @@ public class AppResource extends BaseResource {
             throw new ServerException("ServerError", "MEMORY appender not configured");
         }
         MemoryAppender memoryAppender = (MemoryAppender) appender;
-        
+
         // Find the logs
         LogCriteria logCriteria = new LogCriteria()
                 .setMinLevel(Level.toLevel(StringUtils.stripToNull(minLevel)))
                 .setTag(StringUtils.stripToNull(tag))
                 .setMessage(StringUtils.stripToNull(message));
-        
+
         PaginatedList<LogEntry> paginatedList = PaginatedLists.create(limit, offset);
         memoryAppender.find(logCriteria, paginatedList);
         JsonArrayBuilder logs = Json.createArrayBuilder();
@@ -559,14 +593,14 @@ public class AppResource extends BaseResource {
                     .add("tag", logEntry.getTag())
                     .add("message", logEntry.getMessage()));
         }
-        
+
         JsonObjectBuilder response = Json.createObjectBuilder()
                 .add("total", paginatedList.getResultCount())
                 .add("logs", logs);
-        
+
         return Response.ok().entity(response.build()).build();
     }
-    
+
     /**
      * Destroy and rebuild the search index.
      *
@@ -588,7 +622,7 @@ public class AppResource extends BaseResource {
             throw new ForbiddenClientException();
         }
         checkBaseFunction(BaseFunction.ADMIN);
-        
+
         RebuildIndexAsyncEvent rebuildIndexAsyncEvent = new RebuildIndexAsyncEvent();
         ThreadLocalContext.get().addAsyncEvent(rebuildIndexAsyncEvent);
 
@@ -597,7 +631,7 @@ public class AppResource extends BaseResource {
                 .add("status", "ok");
         return Response.ok().entity(response.build()).build();
     }
-    
+
     /**
      * Clean storage.
      *
@@ -619,7 +653,7 @@ public class AppResource extends BaseResource {
             throw new ForbiddenClientException();
         }
         checkBaseFunction(BaseFunction.ADMIN);
-        
+
         // Get all files
         FileDao fileDao = new FileDao();
         List<File> fileList = fileDao.findAll(0, Integer.MAX_VALUE);
@@ -628,7 +662,7 @@ public class AppResource extends BaseResource {
             fileMap.put(file.getId(), file);
         }
         log.info("Checking {} files", fileMap.size());
-        
+
         // Check if each stored file is valid
         try (DirectoryStream<java.nio.file.Path> storedFileList = Files.newDirectoryStream(DirectoryUtil.getStorageDirectory())) {
             for (java.nio.file.Path storedFile : storedFileList) {
@@ -642,7 +676,7 @@ public class AppResource extends BaseResource {
         } catch (IOException e) {
             throw new ServerException("FileError", "Error deleting orphan files", e);
         }
-        
+
         // Hard delete orphan audit logs
         EntityManager em = ThreadLocalContext.get().getEntityManager();
         StringBuilder sb = new StringBuilder("delete from T_AUDIT_LOG al where al.LOG_ID_C in (select al.LOG_ID_C from T_AUDIT_LOG al ");
@@ -656,7 +690,7 @@ public class AppResource extends BaseResource {
         sb.append(" where d.DOC_ID_C is null and a.ACL_ID_C is null and c.COM_ID_C is null and f.FIL_ID_C is null and t.TAG_ID_C is null and u.USE_ID_C is null and g.GRP_ID_C is null)");
         Query q = em.createNativeQuery(sb.toString());
         log.info("Deleting {} orphan audit logs", q.executeUpdate());
-        
+
         // Soft delete orphan ACLs
         sb = new StringBuilder("update T_ACL a set ACL_DELETEDATE_D = :dateNow where a.ACL_ID_C in (select a.ACL_ID_C from T_ACL a ");
         sb.append(" left join T_SHARE s on s.SHA_ID_C = a.ACL_TARGETID_C ");
@@ -668,48 +702,48 @@ public class AppResource extends BaseResource {
         q = em.createNativeQuery(sb.toString());
         q.setParameter("dateNow", new Date());
         log.info("Deleting {} orphan ACLs", q.executeUpdate());
-        
+
         // Soft delete orphan comments
-        q = em.createNativeQuery("update T_COMMENT c set c.COM_DELETEDATE_D = :dateNow where c.COM_ID_C in (select c.COM_ID_C from T_COMMENT c left join T_DOCUMENT d on d.DOC_ID_C = c.COM_IDDOC_C and d.DOC_DELETEDATE_D is null where d.DOC_ID_C is null)");
+        q = em.createNativeQuery("update T_COMMENT set COM_DELETEDATE_D = :dateNow where COM_ID_C in (select c.COM_ID_C from T_COMMENT c left join T_DOCUMENT d on d.DOC_ID_C = c.COM_IDDOC_C and d.DOC_DELETEDATE_D is null where d.DOC_ID_C is null)");
         q.setParameter("dateNow", new Date());
         log.info("Deleting {} orphan comments", q.executeUpdate());
-        
+
         // Soft delete orphan document tag links
-        q = em.createNativeQuery("update T_DOCUMENT_TAG dt set dt.DOT_DELETEDATE_D = :dateNow where dt.DOT_ID_C in (select dt.DOT_ID_C from T_DOCUMENT_TAG dt left join T_DOCUMENT d on dt.DOT_IDDOCUMENT_C = d.DOC_ID_C and d.DOC_DELETEDATE_D is null left join T_TAG t on t.TAG_ID_C = dt.DOT_IDTAG_C and t.TAG_DELETEDATE_D is null where d.DOC_ID_C is null or t.TAG_ID_C is null)");
+        q = em.createNativeQuery("update T_DOCUMENT_TAG set DOT_DELETEDATE_D = :dateNow where DOT_ID_C in (select dt.DOT_ID_C from T_DOCUMENT_TAG dt left join T_DOCUMENT d on dt.DOT_IDDOCUMENT_C = d.DOC_ID_C and d.DOC_DELETEDATE_D is null left join T_TAG t on t.TAG_ID_C = dt.DOT_IDTAG_C and t.TAG_DELETEDATE_D is null where d.DOC_ID_C is null or t.TAG_ID_C is null)");
         q.setParameter("dateNow", new Date());
         log.info("Deleting {} orphan document tag links", q.executeUpdate());
-        
+
         // Soft delete orphan shares
-        q = em.createNativeQuery("update T_SHARE s set s.SHA_DELETEDATE_D = :dateNow where s.SHA_ID_C in (select s.SHA_ID_C from T_SHARE s left join T_ACL a on a.ACL_TARGETID_C = s.SHA_ID_C and a.ACL_DELETEDATE_D is null where a.ACL_ID_C is null)");
+        q = em.createNativeQuery("update T_SHARE set SHA_DELETEDATE_D = :dateNow where SHA_ID_C in (select s.SHA_ID_C from T_SHARE s left join T_ACL a on a.ACL_TARGETID_C = s.SHA_ID_C and a.ACL_DELETEDATE_D is null where a.ACL_ID_C is null)");
         q.setParameter("dateNow", new Date());
         log.info("Deleting {} orphan shares", q.executeUpdate());
-        
+
         // Soft delete orphan tags
-        q = em.createNativeQuery("update T_TAG t set t.TAG_DELETEDATE_D = :dateNow where t.TAG_ID_C in (select t.TAG_ID_C from T_TAG t left join T_USER u on u.USE_ID_C = t.TAG_IDUSER_C and u.USE_DELETEDATE_D is null where u.USE_ID_C is null)");
+        q = em.createNativeQuery("update T_TAG set TAG_DELETEDATE_D = :dateNow where TAG_ID_C in (select t.TAG_ID_C from T_TAG t left join T_USER u on u.USE_ID_C = t.TAG_IDUSER_C and u.USE_DELETEDATE_D is null where u.USE_ID_C is null)");
         q.setParameter("dateNow", new Date());
         log.info("Deleting {} orphan tags", q.executeUpdate());
-        
+
         // Soft delete orphan documents
-        q = em.createNativeQuery("update T_DOCUMENT d set d.DOC_DELETEDATE_D = :dateNow where d.DOC_ID_C in (select d.DOC_ID_C from T_DOCUMENT d left join T_USER u on u.USE_ID_C = d.DOC_IDUSER_C and u.USE_DELETEDATE_D is null where u.USE_ID_C is null)");
+        q = em.createNativeQuery("update T_DOCUMENT set DOC_DELETEDATE_D = :dateNow where DOC_ID_C in (select d.DOC_ID_C from T_DOCUMENT d left join T_USER u on u.USE_ID_C = d.DOC_IDUSER_C and u.USE_DELETEDATE_D is null where u.USE_ID_C is null)");
         q.setParameter("dateNow", new Date());
         log.info("Deleting {} orphan documents", q.executeUpdate());
-        
+
         // Soft delete orphan files
-        q = em.createNativeQuery("update T_FILE f set f.FIL_DELETEDATE_D = :dateNow where f.FIL_ID_C in (select f.FIL_ID_C from T_FILE f left join T_USER u on u.USE_ID_C = f.FIL_IDUSER_C and u.USE_DELETEDATE_D is null where u.USE_ID_C is null)");
+        q = em.createNativeQuery("update T_FILE set FIL_DELETEDATE_D = :dateNow where FIL_ID_C in (select f.FIL_ID_C from T_FILE f left join T_USER u on u.USE_ID_C = f.FIL_IDUSER_C and u.USE_DELETEDATE_D is null where u.USE_ID_C is null)");
         q.setParameter("dateNow", new Date());
         log.info("Deleting {} orphan files", q.executeUpdate());
-        
+
         // Hard delete softly deleted data
-        log.info("Deleting {} soft deleted document tag links", em.createQuery("delete DocumentTag dt where dt.deleteDate is not null").executeUpdate());
-        log.info("Deleting {} soft deleted ACLs", em.createQuery("delete Acl a where a.deleteDate is not null").executeUpdate());
-        log.info("Deleting {} soft deleted shares", em.createQuery("delete Share s where s.deleteDate is not null").executeUpdate());
-        log.info("Deleting {} soft deleted tags", em.createQuery("delete Tag t where t.deleteDate is not null").executeUpdate());
-        log.info("Deleting {} soft deleted comments", em.createQuery("delete Comment c where c.deleteDate is not null").executeUpdate());
-        log.info("Deleting {} soft deleted files", em.createQuery("delete File f where f.deleteDate is not null").executeUpdate());
-        log.info("Deleting {} soft deleted documents", em.createQuery("delete Document d where d.deleteDate is not null").executeUpdate());
-        log.info("Deleting {} soft deleted users", em.createQuery("delete User u where u.deleteDate is not null").executeUpdate());
-        log.info("Deleting {} soft deleted groups", em.createQuery("delete Group g where g.deleteDate is not null").executeUpdate());
-        
+        log.info("Deleting {} soft deleted document tag links", em.createQuery("delete DocumentTag where deleteDate is not null").executeUpdate());
+        log.info("Deleting {} soft deleted ACLs", em.createQuery("delete Acl where deleteDate is not null").executeUpdate());
+        log.info("Deleting {} soft deleted shares", em.createQuery("delete Share where deleteDate is not null").executeUpdate());
+        log.info("Deleting {} soft deleted tags", em.createQuery("delete Tag where deleteDate is not null").executeUpdate());
+        log.info("Deleting {} soft deleted comments", em.createQuery("delete Comment where deleteDate is not null").executeUpdate());
+        log.info("Deleting {} soft deleted files", em.createQuery("delete File where deleteDate is not null").executeUpdate());
+        log.info("Deleting {} soft deleted documents", em.createQuery("delete Document where deleteDate is not null").executeUpdate());
+        log.info("Deleting {} soft deleted users", em.createQuery("delete User where deleteDate is not null").executeUpdate());
+        log.info("Deleting {} soft deleted groups", em.createQuery("delete Group where deleteDate is not null").executeUpdate());
+
         // Always return OK
         JsonObjectBuilder response = Json.createObjectBuilder()
                 .add("status", "ok");
@@ -754,6 +788,7 @@ public class AppResource extends BaseResource {
             response.add("enabled", true)
                     .add("host", ConfigUtil.getConfigStringValue(ConfigType.LDAP_HOST))
                     .add("port", ConfigUtil.getConfigIntegerValue(ConfigType.LDAP_PORT))
+                    .add("usessl", ConfigUtil.getConfigBooleanValue(ConfigType.LDAP_USESSL))
                     .add("admin_dn", ConfigUtil.getConfigStringValue(ConfigType.LDAP_ADMIN_DN))
                     .add("admin_password", ConfigUtil.getConfigStringValue(ConfigType.LDAP_ADMIN_PASSWORD))
                     .add("base_dn", ConfigUtil.getConfigStringValue(ConfigType.LDAP_BASE_DN))
@@ -777,6 +812,7 @@ public class AppResource extends BaseResource {
      * @apiParam {Boolean} enabled LDAP authentication enabled
      * @apiParam {String} host LDAP server host
      * @apiParam {Integer} port LDAP server port
+     * @apiParam {Boolean} use SSL (ldaps)
      * @apiParam {String} admin_dn Admin DN
      * @apiParam {String} admin_password Admin password
      * @apiParam {String} base_dn Base DN
@@ -791,6 +827,7 @@ public class AppResource extends BaseResource {
      * @param enabled LDAP authentication enabled
      * @param host LDAP server host
      * @param portStr LDAP server port
+     * @param usessl LDAP use SSL (ldaps)
      * @param adminDn Admin DN
      * @param adminPassword Admin password
      * @param baseDn Base DN
@@ -804,6 +841,7 @@ public class AppResource extends BaseResource {
     public Response configLdap(@FormParam("enabled") Boolean enabled,
                                @FormParam("host") String host,
                                @FormParam("port") String portStr,
+                               @FormParam("usessl") Boolean usessl,
                                @FormParam("admin_dn") String adminDn,
                                @FormParam("admin_password") String adminPassword,
                                @FormParam("base_dn") String baseDn,
@@ -833,6 +871,7 @@ public class AppResource extends BaseResource {
             configDao.update(ConfigType.LDAP_ENABLED, Boolean.TRUE.toString());
             configDao.update(ConfigType.LDAP_HOST, host);
             configDao.update(ConfigType.LDAP_PORT, portStr);
+            configDao.update(ConfigType.LDAP_USESSL, usessl.toString());
             configDao.update(ConfigType.LDAP_ADMIN_DN, adminDn);
             configDao.update(ConfigType.LDAP_ADMIN_PASSWORD, adminPassword);
             configDao.update(ConfigType.LDAP_BASE_DN, baseDn);
@@ -843,9 +882,6 @@ public class AppResource extends BaseResource {
             // LDAP disabled
             configDao.update(ConfigType.LDAP_ENABLED, Boolean.FALSE.toString());
         }
-
-        // Reset the LDAP pool to reconnect with the new configuration
-        LdapAuthenticationHandler.reset();
 
         return Response.ok().build();
     }
