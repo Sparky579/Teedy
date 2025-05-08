@@ -104,5 +104,22 @@
     <url-pattern>/api/*</url-pattern>
   </servlet-mapping>
   
+  <!-- Default servlet for static files -->
+  <servlet-mapping>
+    <servlet-name>default</servlet-name>
+    <url-pattern>/apidoc/*</url-pattern>
+  </servlet-mapping>
+  
+  <!-- Simple redirect for /apidoc using RedirectServlet -->
+  <servlet>
+    <servlet-name>redirectServlet</servlet-name>
+    <servlet-class>com.sismics.docs.rest.util.ApidocRedirectServlet</servlet-class>
+  </servlet>
+  
+  <servlet-mapping>
+    <servlet-name>redirectServlet</servlet-name>
+    <url-pattern>/apidoc</url-pattern>
+  </servlet-mapping>
+  
   <absolute-ordering/>
 </web-app>
