@@ -14,9 +14,54 @@ import_test
 teedy-importer-linux
 teedy-importer-macos
 teedy-importer-win.exe
-/home/sparky/Teedy/apidoc-backup
 docs/*
 !docs/.gitkeep
 
+# Build and deployment artifacts
+target/
+build/
+dist/
+*.war
+*.ear
+*.jar
+*.class
+
+# Maven specific
+.mvn/timing.properties
+.mvn/wrapper/maven-wrapper.jar
+dependency-reduced-pom.xml
+
+# API documentation
+apidoc-backup/
+*/apidocs/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# IDE specific files
+.vscode/
+*.sublime-workspace
+*.sublime-project
+.settings/
+.classpath
+.project
+.factorypath
+
+# Temporary files
+tmp/
+temp/
+*~
+*.swp
+*.swo
+
 #macos
 .DS_Store
+
+# Windows specific
+Thumbs.db
+ehthumbs.db
+Desktop.ini
