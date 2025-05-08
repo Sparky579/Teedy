@@ -58,6 +58,13 @@ temp/
 *.swp
 *.swo
 
+# Database and storage files
+data/docs/db/
+data/docs/storage/
+data/docs/db.*.db
+data/docs/lucene/
+data/docs/log/
+
 #macos
 .DS_Store
 
