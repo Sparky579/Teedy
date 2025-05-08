@@ -17,5 +17,58 @@ teedy-importer-win.exe
 docs/*
 !docs/.gitkeep
 
+# Build and deployment artifacts
+target/
+build/
+dist/
+*.war
+*.ear
+*.jar
+*.class
+
+# Maven specific
+.mvn/timing.properties
+.mvn/wrapper/maven-wrapper.jar
+dependency-reduced-pom.xml
+
+# API documentation
+apidoc-backup/
+*/apidocs/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# IDE specific files
+.vscode/
+*.sublime-workspace
+*.sublime-project
+.settings/
+.classpath
+.project
+.factorypath
+
+# Temporary files
+tmp/
+temp/
+*~
+*.swp
+*.swo
+
+# Database and storage files
+data/docs/db/
+data/docs/storage/
+data/docs/db.*.db
+data/docs/lucene/
+data/docs/log/
+
 #macos
 .DS_Store
+
+# Windows specific
+Thumbs.db
+ehthumbs.db
+Desktop.ini
