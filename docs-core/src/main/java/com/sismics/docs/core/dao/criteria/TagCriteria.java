@@ -22,6 +22,11 @@ public class TagCriteria {
      * Document ID.
      */
     private String documentId;
+    
+    /**
+     * Tag name (for LIKE search).
+     */
+    private String nameLike;
 
     public String getId() {
         return id;
@@ -47,6 +52,15 @@ public class TagCriteria {
 
     public TagCriteria setDocumentId(String documentId) {
         this.documentId = documentId;
+        return this;
+    }
+    
+    public String getNameLike() {
+        return nameLike;
+    }
+    
+    public TagCriteria setNameLike(String nameLike) {
+        this.nameLike = nameLike;
         return this;
     }
 }

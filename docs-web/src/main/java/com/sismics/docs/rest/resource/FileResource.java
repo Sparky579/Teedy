@@ -3,21 +3,28 @@ package com.sismics.docs.rest.resource;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.common.io.ByteStreams;
+import com.sismics.docs.core.constant.ConfigType;
+import com.sismics.docs.core.constant.Constants;
 import com.sismics.docs.core.constant.PermType;
-import com.sismics.docs.core.dao.AclDao;
-import com.sismics.docs.core.dao.DocumentDao;
-import com.sismics.docs.core.dao.FileDao;
-import com.sismics.docs.core.dao.UserDao;
+import com.sismics.docs.core.dao.*;
+import com.sismics.docs.core.dao.criteria.TagCriteria;
 import com.sismics.docs.core.dao.dto.DocumentDto;
+import com.sismics.docs.core.dao.dto.TagDto;
 import com.sismics.docs.core.event.DocumentUpdatedAsyncEvent;
+import com.sismics.docs.core.event.FileCreatedAsyncEvent;
 import com.sismics.docs.core.event.FileDeletedAsyncEvent;
 import com.sismics.docs.core.event.FileUpdatedAsyncEvent;
 import com.sismics.docs.core.model.context.AppContext;
 import com.sismics.docs.core.model.jpa.File;
+import com.sismics.docs.core.model.jpa.Tag;
 import com.sismics.docs.core.model.jpa.User;
 import com.sismics.docs.core.util.DirectoryUtil;
 import com.sismics.docs.core.util.EncryptionUtil;
 import com.sismics.docs.core.util.FileUtil;
+import com.sismics.docs.core.util.jpa.PaginatedList;
+import com.sismics.docs.core.util.jpa.PaginatedLists;
+import com.sismics.docs.core.util.jpa.SortCriteria;
+import com.sismics.docs.rest.constant.BaseFunction;
 import com.sismics.rest.exception.ClientException;
 import com.sismics.rest.exception.ForbiddenClientException;
 import com.sismics.rest.exception.ServerException;
@@ -27,8 +34,11 @@ import com.sismics.util.HttpUtil;
 import com.sismics.util.JsonUtil;
 import com.sismics.util.context.ThreadLocalContext;
 import com.sismics.util.mime.MimeType;
+import com.sismics.util.mime.MimeTypeUtil;
 import org.glassfish.jersey.media.multipart.FormDataBodyPart;
 import org.glassfish.jersey.media.multipart.FormDataParam;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import jakarta.json.Json;
 import jakarta.json.JsonArrayBuilder;
@@ -41,6 +51,7 @@ import jakarta.ws.rs.core.Response.Status;
 import jakarta.ws.rs.core.StreamingOutput;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
@@ -48,7 +59,8 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.text.MessageFormat;
-import java.util.List;
+import java.text.SimpleDateFormat;
+import java.util.*;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
@@ -59,6 +71,11 @@ import java.util.zip.ZipOutputStream;
  */
 @Path("/file")
 public class FileResource extends BaseResource {
+    /**
+     * Logger.
+     */
+    private static final Logger log = LoggerFactory.getLogger(FileResource.class);
+
     /**
      * Add a file (with or without a document).
      *
@@ -128,6 +145,15 @@ public class FileResource extends BaseResource {
         try {
             String fileId = FileUtil.createFile(name, previousFileId, unencryptedFile, fileSize, documentDto == null ?
                     null : documentDto.getLanguage(), principal.getId(), documentId);
+            
+            // 如果有关联的文档，则自动添加标签
+            if (documentId != null) {
+                // 获取文件MIME类型
+                String mimeType = MimeTypeUtil.guessMimeType(unencryptedFile, name);
+                
+                // 自动添加标签逻辑
+                autoAddTagByMimeType(documentId, mimeType);
+            }
 
             // Always return OK
             JsonObjectBuilder response = Json.createObjectBuilder()
@@ -139,6 +165,78 @@ public class FileResource extends BaseResource {
             throw new ClientException(e.getMessage(), e.getMessage(), e);
         } catch (Exception e) {
             throw new ServerException("FileError", "Error adding a file", e);
+        }
+    }
+    
+    /**
+     * 根据MIME类型自动添加标签
+     * 
+     * @param documentId 文档ID
+     * @param mimeType MIME类型
+     */
+    private void autoAddTagByMimeType(String documentId, String mimeType) {
+        if (mimeType == null) return;
+        
+        // 确定要添加的标签名称
+        String tagName = null;
+        if (mimeType.startsWith("image/")) {
+            tagName = "image";
+        } else if (mimeType.startsWith("text/") || 
+                   mimeType.equals("application/pdf") || 
+                   mimeType.equals("application/msword") || 
+                   mimeType.contains("document") ||
+                   mimeType.contains("pdf") ||
+                   mimeType.contains("text")) {
+            tagName = "text";
+        }
+        
+        // 如果没有匹配的标签类型，则退出
+        if (tagName == null) return;
+        
+        try {
+            // 查找标签ID
+            TagDao tagDao = new TagDao();
+            List<TagDto> tagDtoList = tagDao.findByCriteria(new TagCriteria(), null);
+            
+            String tagId = null;
+            for (TagDto tagDto : tagDtoList) {
+                if (tagName.equals(tagDto.getName())) {
+                    tagId = tagDto.getId();
+                    break;
+                }
+            }
+            
+            // 如果标签不存在，则创建
+            if (tagId == null) {
+                Tag tag = new Tag();
+                tag.setName(tagName);
+                tag.setColor("#3a87ad"); // 默认蓝色
+                tag.setUserId(principal.getId());
+                tagId = tagDao.create(tag, principal.getId());
+            }
+            
+            // 获取文档当前标签
+            List<TagDto> documentTags = tagDao.findByCriteria(new TagCriteria().setDocumentId(documentId), null);
+            
+            // 检查文档是否已有这个标签
+            boolean hasTag = false;
+            Set<String> tagIdSet = new HashSet<>();
+            for (TagDto documentTag : documentTags) {
+                tagIdSet.add(documentTag.getId());
+                if (documentTag.getId().equals(tagId)) {
+                    hasTag = true;
+                }
+            }
+            
+            // 如果文档没有这个标签，则添加
+            if (!hasTag) {
+                tagIdSet.add(tagId);
+                tagDao.updateTagList(documentId, tagIdSet);
+            }
+        } catch (Exception e) {
+            // 记录错误但不中断流程
+            // 因为添加标签失败不应该导致文件上传失败
+            log.error("Error adding tag by MIME type", e);
         }
     }
     
@@ -195,6 +293,14 @@ public class FileResource extends BaseResource {
         file.setDocumentId(documentId);
         file.setOrder(fileDao.getByDocumentId(principal.getId(), documentId).size());
         fileDao.update(file);
+        
+        // 获取文件MIME类型并添加标签
+        try {
+            autoAddTagByMimeType(documentId, file.getMimeType());
+        } catch (Exception e) {
+            // 添加标签发生错误不影响正常操作
+            log.error("Error adding tag when attaching file", e);
+        }
         
         // Raise a new file updated event and document updated event (it wasn't sent during file creation)
         try {

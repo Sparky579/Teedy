@@ -196,6 +196,10 @@ public class TagDao {
             criteriaList.add("dt.DOT_IDDOCUMENT_C = :documentId");
             parameterMap.put("documentId", criteria.getDocumentId());
         }
+        if (criteria.getNameLike() != null) {
+            criteriaList.add("lower(t.TAG_NAME_C) like lower(:nameLike)");
+            parameterMap.put("nameLike", "%" + criteria.getNameLike() + "%");
+        }
 
         criteriaList.add("t.TAG_DELETEDATE_D is null");
 
