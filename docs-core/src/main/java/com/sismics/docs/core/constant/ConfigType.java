@@ -21,16 +21,6 @@ public enum ConfigType {
     GUEST_LOGIN,
 
     /**
-     * OCR enabled.
-     */
-    OCR_ENABLED,
-
-    /**
-     * Default language.
-     */
-    DEFAULT_LANGUAGE,
-
-    /**
      * SMTP server configuration.
      */
     SMTP_HOSTNAME,
@@ -65,5 +55,18 @@ public enum ConfigType {
     LDAP_BASE_DN,
     LDAP_FILTER,
     LDAP_DEFAULT_EMAIL,
-    LDAP_DEFAULT_STORAGE
+    LDAP_DEFAULT_STORAGE,
+
+    /** Global quota. */
+    QUOTA,
+    /** User quota. */
+    USER_QUOTA,
+    /** OCR enabled. */
+    OCR_ENABLED,
+    /** LLM API key. */
+    LLM_API_KEY,
+    /** LLM model name. */
+    LLM_MODEL_NAME,
+    /** LLM API base URL. */
+    LLM_API_BASE_URL
 }
