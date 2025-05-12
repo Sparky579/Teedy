@@ -1,0 +1,36 @@
+<div class="tab-pane clearfix" id="settings-config-llm">
+  <form class="form-horizontal" name="llmForm">
+    <div class="form-group" title="{{ 'settings.config.llm.api_key.help' | translate }}">
+      <label class="col-sm-2 control-label" for="llmApiKey">{{ 'settings.config.llm.api_key' | translate }}</label>
+      <div class="col-sm-7">
+        <input type="password" class="form-control" id="llmApiKey"
+               ng-model="llm.api_key" ng-required="true"
+               placeholder="{{ 'settings.config.llm.api_key.placeholder' | translate }}">
+      </div>
+    </div>
+    <div class="form-group" title="{{ 'settings.config.llm.model_name.help' | translate }}">
+      <label class="col-sm-2 control-label" for="llmModelName">{{ 'settings.config.llm.model_name' | translate }}</label>
+      <div class="col-sm-7">
+        <input type="text" class="form-control" id="llmModelName"
+               ng-model="llm.model_name" ng-required="true"
+               placeholder="{{ 'settings.config.llm.model_name.placeholder' | translate }}">
+      </div>
+    </div>
+    <div class="form-group" title="{{ 'settings.config.llm.api_base_url.help' | translate }}">
+      <label class="col-sm-2 control-label" for="llmApiBaseUrl">{{ 'settings.config.llm.api_base_url' | translate }}</label>
+      <div class="col-sm-7">
+        <input type="text" class="form-control" id="llmApiBaseUrl"
+               ng-model="llm.api_base_url" ng-required="true"
+               placeholder="{{ 'settings.config.llm.api_base_url.placeholder' | translate }}">
+      </div>
+    </div>
+    <div class="form-group">
+      <div class="col-sm-offset-2 col-sm-10">
+        <button type="submit" class="btn btn-primary"
+                ng-click="editLlmConfig()" ng-disabled="!llmForm.$valid">
+          <span class="fas fa-save"></span> {{ 'save' | translate }}
+        </button>
+      </div>
+    </div>
+  </form>
+</div> 

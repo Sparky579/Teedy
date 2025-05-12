@@ -1,5 +1,13 @@
 package com.sismics.docs.core.dao;
 
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
+
 import com.google.common.base.Joiner;
 import com.sismics.docs.core.constant.AuditLogType;
 import com.sismics.docs.core.dao.criteria.TagCriteria;
@@ -16,7 +24,6 @@ import com.sismics.util.context.ThreadLocalContext;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.NoResultException;
 import jakarta.persistence.Query;
-import java.util.*;
 
 /**
  * Tag DAO.
