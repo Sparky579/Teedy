@@ -1,5 +1,13 @@
 package com.sismics.docs.core.dao;
 
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
+
 import com.google.common.base.Joiner;
 import com.sismics.docs.core.constant.AuditLogType;
 import com.sismics.docs.core.dao.criteria.TagCriteria;
@@ -16,7 +24,6 @@ import com.sismics.util.context.ThreadLocalContext;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.NoResultException;
 import jakarta.persistence.Query;
-import java.util.*;
 
 /**
  * Tag DAO.
@@ -195,6 +202,10 @@ public class TagDao {
             sb.append(" join T_DOCUMENT_TAG dt on dt.DOT_IDTAG_C = t.TAG_ID_C and dt.DOT_DELETEDATE_D is null ");
             criteriaList.add("dt.DOT_IDDOCUMENT_C = :documentId");
             parameterMap.put("documentId", criteria.getDocumentId());
+        }
+        if (criteria.getNameLike() != null) {
+            criteriaList.add("lower(t.TAG_NAME_C) like lower(:nameLike)");
+            parameterMap.put("nameLike", "%" + criteria.getNameLike() + "%");
         }
 
         criteriaList.add("t.TAG_DELETEDATE_D is null");

@@ -88,4 +88,31 @@ public class ConfigUtil {
             return defaultValue;
         }
     }
+
+    /**
+     * Get the LLM API key.
+     * 
+     * @return LLM API key
+     */
+    public static String getLlmApiKey() {
+        return ConfigUtil.getConfigStringValue(ConfigType.LLM_API_KEY, "");
+    }
+
+    /**
+     * Get the LLM model name.
+     * 
+     * @return LLM model name
+     */
+    public static String getLlmModelName() {
+        return ConfigUtil.getConfigStringValue(ConfigType.LLM_MODEL_NAME, "deepseek-v3");
+    }
+    
+    /**
+     * Get the LLM API base URL.
+     * 
+     * @return LLM API base URL
+     */
+    public static String getLlmApiBaseUrl() {
+        return ConfigUtil.getConfigStringValue(ConfigType.LLM_API_BASE_URL, "https://dashscope.aliyuncs.com/compatible-mode/v1");
+    }
 }
