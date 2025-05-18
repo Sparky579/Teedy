@@ -24,65 +24,152 @@
     font-size: 90%;
     color: #666;
   }
+  
+  /* 改进登录框布局 */
+  .login-container {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  .login-form-container {
+    background-color: #fff;
+    border-radius: 8px;
+    box-shadow: 0 0 20px rgba(0,0,0,0.1);
+    padding: 30px;
+    width: 100%;
+    max-width: 400px;
+  }
+  
+  .login-title {
+    text-align: center;
+    margin-bottom: 30px;
+  }
+  
+  .form-group {
+    margin-bottom: 20px;
+  }
+  
+  .login-buttons {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 25px;
+  }
+  
+  .register-button-container {
+    text-align: center;
+    margin-top: 20px;
+  }
+  
+  .form-control {
+    height: 42px;
+  }
+  
+  .btn {
+    min-width: 120px;
+  }
+  
+  /* 消除Bootstrap默认内边距 */
+  .no-padding {
+    padding: 0;
+  }
 </style>
-<div class="row vertical-center">
-  <div class="col-sm-6 col-xs-12 login-box">
-    <div class="row">
-      <div class="col-lg-offset-4 col-lg-4 col-xs-offset-1 col-xs-10">
-        <img src="img/title.png" class="img-responsive" />
 
-        <form>
-          <div class="form-group">
-            <label class="sr-only" for="inputUsername">{{ 'login.username' | translate }}</label>
-            <input class="form-control" type="text" id="inputUsername" name="username"
-                   ng-attr-placeholder="{{ 'login.username' | translate }}" ng-model="user.username" />
+<div class="vertical-center">
+  <div class="login-container">
+    <div class="login-form-container">
+      <div class="login-title">
+        <img src="img/title.png" class="img-responsive center-block" style="max-width: 200px;" />
+      </div>
+
+      <form name="loginForm" ng-submit="login()" ng-show="!inProgress && !finishedSuccessfully">
+        <div class="form-group" ng-class="{ 'has-error': !loginForm.username.$valid && loginForm.$dirty, success: loginForm.username.$valid }">
+          <label for="inputUsername">用户名</label>
+          <input name="username" type="text" id="inputUsername" required ng-minlength="3" class="form-control"
+                 placeholder="用户名" ng-model="user.username" />
+        </div>
+        
+        <div class="form-group" ng-class="{ 'has-error': !loginForm.password.$valid && loginForm.$dirty, success: loginForm.password.$valid }">
+          <label for="inputPassword">密码</label>
+          <input name="password" type="password" id="inputPassword" required class="form-control"
+                 placeholder="密码" ng-model="user.password" />
+        </div>
+        
+        <div class="form-group" ng-show="totp && !totpBack">
+          <label for="inputCode">验证码</label>
+          <input name="code" type="text" id="inputCode" class="form-control"
+                 placeholder="验证码" ng-model="user.code"/>
+        </div>
+        
+        <div class="form-group" ng-show="totp && totpBack">
+          <div class="alert alert-info">
+            <p>您的帐号已启用双重验证。请输入您配置手机应用生成的验证码。</p>
+            <p>如果您无法获取验证码，请使用恢复代码。</p>
           </div>
-
-          <div class="form-group">
-            <label class="sr-only" for="inputPassword">{{ 'login.password' | translate }}</label>
-            <input class="form-control" type="password" id="inputPassword" name="password"
-                   ng-attr-placeholder="{{ 'login.password' | translate }}" ng-model="user.password" />
-          </div>
-
-          <span class="help-block" ng-if="codeRequired">
-            {{ 'login.validation_code_required' | translate }}
-            <span class="fas fa-question-circle" title="{{ 'login.validation_code_title' | translate }}"></span>
-          </span>
-          <div class="form-group" ng-if="codeRequired">
-            <label class="sr-only" for="inputCode">{{ 'login.validation_code' | translate }}</label>
-            <input class="form-control" type="text" id="inputCode" name="code"
-                   ng-attr-placeholder="{{ 'login.validation_code' | translate }}" ng-model="user.code" />
-          </div>
-
-          <div class="checkbox text-muted">
+        </div>
+        
+        <div class="form-group" ng-show="totp">
+          <button type="button" class="btn btn-info btn-block" ng-click="setTotpBack(!totpBack)">
+            <span ng-if="!totpBack">使用恢复代码登录</span>
+            <span ng-if="totpBack">使用电子邮件验证码登录</span>
+          </button>
+        </div>
+        
+        <div class="form-group">
+          <div class="checkbox">
             <label>
-              <input type="checkbox" ng-model="user.remember" name="remember" /> {{ 'login.remember_me' | translate }}
+              <input type="checkbox" ng-model="user.remember" />
+              记住我
             </label>
           </div>
-
-          <div class="row">
-            <div class="col-md-6">
-              <button type="submit" class="btn btn-primary" ng-click="login()">
-                <span class="fas fa-check"></span> {{ 'login.submit' | translate }}
-              </button>
-            </div>
-
-            <div class="col-md-6 text-right btn-password-lost">
-              <div class="well-sm">
-                <a href ng-click="openPasswordLost()">{{ 'login.password_lost_btn' | translate }}</a>
-              </div>
-            </div>
-          </div>
-
-          <p class="text-center" ng-if="app.guest_login">&nbsp;</p>
-
-          <button type="submit" class="btn btn-default btn-block" ng-if="app.guest_login" ng-click="loginAsGuest()">
-            <span class="fas fa-user"></span> {{ 'login.login_as_guest' | translate }}
+        </div>
+        
+        <div class="alert alert-danger" ng-show="fail">
+          <strong>登录失败</strong> 用户名或密码不正确
+        </div>
+        
+        <div class="login-buttons">
+          <button type="submit" class="btn btn-primary" ng-disabled="!loginForm.$valid">
+            <span class="fas fa-sign-in-alt"></span> 登录
           </button>
-        </form>
+          
+          <button type="button" class="btn btn-danger" ng-click="openPasswordLost()"
+                  title="忘记密码">
+            <span class="fas fa-question"></span> 忘记密码
+          </button>
+        </div>
+      </form>
+
+      <div class="register-button-container" ng-show="!inProgress && !finishedSuccessfully">
+        <a href="#/register" class="btn btn-success btn-lg">
+          <span class="fas fa-user-plus"></span> 注册新账号
+        </a>
+      </div>
+
+      <!-- In progress panel -->
+      <div class="in-progress" ng-show="inProgress && !finishedSuccessfully">
+        <div>
+          <p>
+            欢迎回来
+          </p>
+          <div class="spinner-grow">
+            <div class="bounce1"></div>
+            <div class="bounce2"></div>
+            <div class="bounce3"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Login complete panel -->
+      <div class="login-complete" ng-show="finishedSuccessfully">
+        <div>
+          <p>
+            <span class="fas fa-check"></span>
+          </p>
+        </div>
       </div>
     </div>
   </div>
-
-  <div class="login-img-container col-sm-6 hidden-xs"></div>
 </div>

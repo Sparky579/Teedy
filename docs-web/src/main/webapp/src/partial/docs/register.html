@@ -1,0 +1,86 @@
+<div class="content">
+  <h2>用户注册</h2>
+  
+  <div class="alert alert-success" ng-show="!register.loading && register.success">
+    <strong>注册成功</strong> 您的注册请求已提交，请等待管理员审核。
+  </div>
+
+  <form class="form-horizontal" name="registerForm" ng-submit="register.submit()" ng-show="!register.success">
+    <div class="form-group" ng-class="{ 'has-error': !registerForm.username.$valid && registerForm.$dirty, success: registerForm.username.$valid }">
+      <label class="col-sm-2 control-label" for="inputUsername">用户名</label>
+      <div class="col-sm-7">
+        <input name="username" type="text" id="inputUsername" required ng-pattern="/^[a-zA-Z0-9_@.-]*$/"
+               ng-minlength="3" ng-maxlength="50" class="form-control"
+               ng-model="register.user.username"/>
+      </div>
+      <div class="col-sm-3">
+        <span class="help-block" ng-show="registerForm.username.$error.required && registerForm.$dirty">此项为必填项</span>
+        <span class="help-block" ng-show="registerForm.username.$error.minlength && registerForm.$dirty">输入的内容太短</span>
+        <span class="help-block" ng-show="registerForm.username.$error.maxlength && registerForm.$dirty">输入的内容太长</span>
+        <span class="help-block" ng-show="registerForm.username.$error.pattern && registerForm.$dirty">只允许字母、数字和符号 _ @ . -</span>
+      </div>
+    </div>
+
+    <div class="form-group" ng-class="{ 'has-error': !registerForm.email.$valid && registerForm.$dirty, success: registerForm.email.$valid }">
+      <label class="col-sm-2 control-label" for="inputEmail">电子邮箱</label>
+      <div class="col-sm-7">
+        <input name="email" type="email" id="inputEmail" required class="form-control"
+               ng-minlength="1" ng-maxlength="100" ng-model="register.user.email"/>
+      </div>
+      <div class="col-sm-3">
+        <span class="help-block" ng-show="registerForm.email.$error.required && registerForm.$dirty">此项为必填项</span>
+        <span class="help-block" ng-show="registerForm.email.$error.email && registerForm.$dirty">请输入有效的电子邮箱</span>
+        <span class="help-block" ng-show="registerForm.email.$error.minlength && registerForm.$dirty">输入的内容太短</span>
+        <span class="help-block" ng-show="registerForm.email.$error.maxlength && registerForm.$dirty">输入的内容太长</span>
+      </div>
+    </div>
+
+    <div class="form-group" ng-class="{ 'has-error': !registerForm.password.$valid && registerForm.$dirty, success: registerForm.password.$valid }">
+      <label class="col-sm-2 control-label" for="inputPassword">密码</label>
+      <div class="col-sm-7">
+        <input name="password" type="password" id="inputPassword" required class="form-control"
+               ng-minlength="8" ng-maxlength="50" ng-model="register.user.password"/>
+      </div>
+      <div class="col-sm-3">
+        <span class="help-block" ng-show="registerForm.password.$error.required && registerForm.$dirty">此项为必填项</span>
+        <span class="help-block" ng-show="registerForm.password.$error.minlength && registerForm.$dirty">密码至少需要8个字符</span>
+        <span class="help-block" ng-show="registerForm.password.$error.maxlength && registerForm.$dirty">输入的内容太长</span>
+      </div>
+    </div>
+
+    <div class="form-group" ng-class="{ 'has-error': !registerForm.passwordconfirm.$valid && registerForm.$dirty, success: registerForm.passwordconfirm.$valid }">
+      <label class="col-sm-2 control-label" for="inputPasswordConfirm">确认密码</label>
+      <div class="col-sm-7">
+        <input name="passwordconfirm" type="password" id="inputPasswordConfirm" required class="form-control"
+               ui-validate="'$value == register.user.password'" ui-validate-watch="'register.user.password'"
+               ng-model="register.user.passwordconfirm"/>
+      </div>
+      <div class="col-sm-3">
+        <span class="help-block" ng-show="registerForm.passwordconfirm.$error.validator && registerForm.$dirty">两次输入的密码不一致</span>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <div class="col-sm-offset-2 col-sm-10">
+        <button type="submit" class="btn btn-primary" ng-disabled="!registerForm.$valid || register.loading">
+          <span class="fas fa-pencil-alt"></span> 提交注册
+        </button>
+        <span ng-show="register.loading"><span class="fas fa-circle-notch fa-spin"></span> 加载中...</span>
+      </div>
+    </div>
+
+    <div class="form-group" ng-show="register.error">
+      <div class="col-sm-offset-2 col-sm-10">
+        <div class="alert alert-danger">
+          <strong>注册失败</strong> {{ register.errorMessage }}
+        </div>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <div class="col-sm-offset-2 col-sm-10">
+        <a href="#/login">返回登录</a>
+      </div>
+    </div>
+  </form>
+</div> 

@@ -1,29 +1,34 @@
 package com.sismics.docs.core.dao;
 
-import com.google.common.base.Joiner;
-import com.google.common.base.Strings;
-import at.favre.lib.crypto.bcrypt.BCrypt;
+import java.sql.Timestamp;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+
 import org.joda.time.DateTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.base.Joiner;
 import com.sismics.docs.core.constant.AuditLogType;
-import com.sismics.docs.core.constant.Constants;
 import com.sismics.docs.core.dao.criteria.UserCriteria;
 import com.sismics.docs.core.dao.dto.UserDto;
 import com.sismics.docs.core.model.jpa.User;
 import com.sismics.docs.core.util.AuditLogUtil;
 import com.sismics.docs.core.util.EncryptionUtil;
+import com.sismics.docs.core.util.authentication.AuthenticationUtil;
 import com.sismics.docs.core.util.jpa.QueryParam;
 import com.sismics.docs.core.util.jpa.QueryUtil;
 import com.sismics.docs.core.util.jpa.SortCriteria;
 import com.sismics.util.context.ThreadLocalContext;
 
+import at.favre.lib.crypto.bcrypt.BCrypt;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.NoResultException;
 import jakarta.persistence.Query;
-import java.sql.Timestamp;
-import java.util.*;
 
 /**
  * User DAO.
@@ -82,7 +87,7 @@ public class UserDao {
         
         // Create the user
         user.setCreateDate(new Date());
-        user.setPassword(hashPassword(user.getPassword()));
+        user.setPassword(AuthenticationUtil.hashPassword(user.getPassword()));
         user.setPrivateKey(EncryptionUtil.generatePrivateKey());
         user.setStorageCurrent(0L);
         em.persist(user);
@@ -108,13 +113,11 @@ public class UserDao {
         q.setParameter("id", user.getId());
         User userDb = (User) q.getSingleResult();
 
-        // Update the user (except password)
+        // Update the user
         userDb.setEmail(user.getEmail());
-        userDb.setStorageQuota(user.getStorageQuota());
-        userDb.setStorageCurrent(user.getStorageCurrent());
-        userDb.setTotpKey(user.getTotpKey());
         userDb.setDisableDate(user.getDisableDate());
-
+        userDb.setStorageQuota(user.getStorageQuota());
+        
         // Create audit log
         AuditLogUtil.create(userDb, AuditLogType.UPDATE, userId);
         
@@ -154,7 +157,7 @@ public class UserDao {
         User userDb = (User) q.getSingleResult();
 
         // Update the user
-        userDb.setPassword(hashPassword(user.getPassword()));
+        userDb.setPassword(AuthenticationUtil.hashPassword(user.getPassword()));
         
         // Create audit log
         AuditLogUtil.create(userDb, AuditLogType.UPDATE, userId);
@@ -199,6 +202,26 @@ public class UserDao {
         // Update the user
         userDb.setOnboarding(user.isOnboarding());
 
+        return user;
+    }
+
+    /**
+     * Update the TOTP key of a user.
+     * 
+     * @param user User to update
+     * @return Updated user
+     */
+    public User updateTotpKey(User user) {
+        EntityManager em = ThreadLocalContext.get().getEntityManager();
+        
+        // Get the user
+        Query q = em.createQuery("select u from User u where u.id = :id and u.deleteDate is null");
+        q.setParameter("id", user.getId());
+        User userDb = (User) q.getSingleResult();
+
+        // Update the user
+        userDb.setTotpKey(user.getTotpKey());
+        
         return user;
     }
 
@@ -281,30 +304,6 @@ public class UserDao {
         AuditLogUtil.create(userDb, AuditLogType.DELETE, userId);
     }
 
-    /**
-     * Hash the user's password.
-     * 
-     * @param password Clear password
-     * @return Hashed password
-     */
-    private String hashPassword(String password) {
-        int bcryptWork = Constants.DEFAULT_BCRYPT_WORK;
-        String envBcryptWork = System.getenv(Constants.BCRYPT_WORK_ENV);
-        if (!Strings.isNullOrEmpty(envBcryptWork)) {
-            try {
-                int envBcryptWorkInt = Integer.parseInt(envBcryptWork);
-                if (envBcryptWorkInt >= 4 && envBcryptWorkInt <= 31) {
-                    bcryptWork = envBcryptWorkInt;
-                } else {
-                    log.warn(Constants.BCRYPT_WORK_ENV + " needs to be in range 4...31. Falling back to " + Constants.DEFAULT_BCRYPT_WORK + ".");
-                }
-            } catch (NumberFormatException e) {
-                log.warn(Constants.BCRYPT_WORK_ENV + " needs to be a number in range 4...31. Falling back to " + Constants.DEFAULT_BCRYPT_WORK + ".");
-            }
-        }
-        return BCrypt.withDefaults().hashToString(bcryptWork, password.toCharArray());
-    }
-    
     /**
      * Returns the list of all users.
      * 

@@ -37,6 +37,15 @@ angular.module('docs',
         }
       }
     })
+    .state('register', {
+      url: '/register',
+      views: {
+        'page': {
+          templateUrl: 'partial/docs/register.html',
+          controller: 'Register'
+        }
+      }
+    })
     .state('tag', {
       url: '/tag',
       abstract: true,
@@ -253,6 +262,15 @@ angular.module('docs',
         }
       }
     })
+    .state('settings.userregistration', {
+      url: '/userregistration',
+      views: {
+        'settings': {
+          templateUrl: 'partial/docs/settings.userregistration.html',
+          controller: 'SettingsUserRegistration'
+        }
+      }
+    })
     .state('settings.useractivity', {
       url: '/useractivity',
       views: {
@@ -431,6 +449,28 @@ angular.module('docs',
   // Configuring Restangular
   RestangularProvider.setBaseUrl('../api');
 
+  // 确保使用正确的内容类型
+  RestangularProvider.setDefaultHeaders({
+    'Content-Type': 'application/x-www-form-urlencoded'
+  });
+
+  // 配置请求转换器，将JSON对象转换为表单数据格式
+  RestangularProvider.setDefaultHttpFields({
+    transformRequest: function(data) {
+      if (angular.isObject(data) && String(data) !== '[object File]') {
+        // 将对象转换为表单数据格式
+        var str = [];
+        for (var p in data) {
+          if (data.hasOwnProperty(p) && data[p] !== null && data[p] !== undefined) {
+            str.push(encodeURIComponent(p) + "=" + encodeURIComponent(data[p]));
+          }
+        }
+        return str.join("&");
+      }
+      return data;
+    }
+  });
+
   // Configuring Angular Translate
   $translateProvider
     .useSanitizeValueStrategy('escapeParameters')
@@ -530,34 +570,18 @@ angular.module('docs',
 
   // Languages
   $rootScope.acceptedLanguages = [
-    { key: 'eng', label: 'English' },
-    { key: 'fra', label: 'Français' },
-    { key: 'ita', label: 'Italiano' },
-    { key: 'deu', label: 'Deutsch' },
-    { key: 'spa', label: 'Español' },
-    { key: 'por', label: 'Português' },
-    { key: 'pol', label: 'Polski' },
-    { key: 'rus', label: 'русский' },
-    { key: 'ukr', label: 'українська' },
-    { key: 'ara', label: 'العربية' },
-    { key: 'hin', label: 'हिन्दी' },
-    { key: 'chi_sim', label: '简体中文' },
-    { key: 'chi_tra', label: '繁体中文' },
-    { key: 'jpn', label: '日本語' },
-    { key: 'tha', label: 'ภาษาไทย' },
-    { key: 'kor', label: '한국어' },
-    { key: 'nld', label: 'Nederlands' },
-    { key: 'tur', label: 'Türkçe' },
-    { key: 'heb', label: 'עברית' },
-    { key: 'hun', label: 'Magyar' },
-    { key: 'fin', label: 'Suomi' },
-    { key: 'swe', label: 'Svenska' },
-    { key: 'lav', label: 'Latviešu' },
-    { key: 'dan', label: 'Dansk' },
-    { key: 'nor', label: 'Norsk' },
-    { key: 'vie', label: 'Tiếng Việt' },
-    { key: 'ces', label: 'Czech' },
-    { key: 'sqi', label: 'Shqip' }
+    { key: 'sq_AL', label: 'Shqip' },
+    { key: 'en', label: 'English' },
+    { key: 'es', label: 'Español' },
+    { key: 'pt', label: 'Português' },
+    { key: 'fr', label: 'Français' },
+    { key: 'de', label: 'Deutsch' },
+    { key: 'el', label: 'ελληνικά' },
+    { key: 'ru', label: 'русский' },
+    { key: 'it', label: 'Italiano' },
+    { key: 'pl', label: 'Polski' },
+    { key: 'zh_CN', label: '中文 (中国)' },
+    { key: 'zh_TW', label: '中文 (台灣)' }
   ];
 })
 /**

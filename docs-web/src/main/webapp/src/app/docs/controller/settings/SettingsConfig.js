@@ -9,14 +9,7 @@ angular.module('docs').controller('SettingsConfig', function($scope, $rootScope,
     $rootScope.app = data;
     $scope.general = {
       default_language: data.default_language
-    };
-    
-    // LLM configuration
-    $scope.llm = {
-      api_key: data.llm_api_key || '',
-      model_name: data.llm_model_name || 'deepseek-v3',
-      api_base_url: data.llm_api_base_url || 'https://dashscope.aliyuncs.com/compatible-mode/v1'
-    };
+    }
   });
 
   // Enable/disable guest login
@@ -97,11 +90,6 @@ angular.module('docs').controller('SettingsConfig', function($scope, $rootScope,
   // Edit general config
   $scope.editGeneralConfig = function () {
     Restangular.one('app').post('config', $scope.general);
-  };
-
-  // Edit LLM config
-  $scope.editLlmConfig = function () {
-    Restangular.one('app').post('config_llm', $scope.llm);
   };
 
   // Get the webhooks
