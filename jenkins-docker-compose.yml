@@ -1,0 +1,48 @@
+version: '3'
+services:
+  # Jenkins服务
+  jenkins:
+    image: jenkins/jenkins:lts
+    container_name: jenkins
+    privileged: true
+    user: root
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./jenkins_home:/var/jenkins_home
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - JENKINS_OPTS="--prefix=/jenkins"
+
+  # 构建和运行Teedy镜像的服务
+  teedy-builder:
+    image: docker:20.10-dind
+    privileged: true
+    container_name: teedy-builder
+    command: >
+      sh -c "
+        apk add --no-cache openssh-client git curl bash && 
+        mkdir -p /workspace && 
+        cd /workspace && 
+        # 克隆当前项目
+        cp -r /teedy-src/* . && 
+        # 构建Docker镜像
+        docker build -t sparkydock/teedy:latest . && 
+        # 推送到Docker Hub（需要在环境变量中设置凭据）
+        echo $$DOCKER_PASSWORD | docker login -u $$DOCKER_USERNAME --password-stdin && 
+        docker push sparkydock/teedy:latest &&
+        # 运行三个容器
+        docker run -d --name teedy-container-8082 -p 8082:8080 sparkydock/teedy:latest &&
+        docker run -d --name teedy-container-8083 -p 8083:8080 sparkydock/teedy:latest &&
+        docker run -d --name teedy-container-8084 -p 8084:8080 sparkydock/teedy:latest
+      "
+    environment:
+      - DOCKER_USERNAME=sparkydock
+      - DOCKER_PASSWORD=your-docker-hub-password
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - .:/teedy-src
+      - teedy-data:/data
+
+volumes:
+  teedy-data: 

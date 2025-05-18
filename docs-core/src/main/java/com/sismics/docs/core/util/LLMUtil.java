@@ -32,6 +32,21 @@ public class LLMUtil {
     private static final Logger log = LoggerFactory.getLogger(LLMUtil.class);
 
     /**
+     * API key for calling the LLM.
+     */
+    private static final String API_KEY = "sk-d6a2d46469a343358208d70f427e313e";
+
+    /**
+     * API base URL.
+     */
+    private static final String API_BASE_URL = "https://dashscope.aliyuncs.com/compatible-mode/v1";
+
+    /**
+     * Model name.
+     */
+    private static final String MODEL_NAME = "deepseek-v3";
+
+    /**
      * Default temperature.
      */
     private static final double TEMPERATURE = 0.7;
@@ -54,18 +69,7 @@ public class LLMUtil {
         if (content == null || content.isEmpty()) {
             return Lists.newArrayList();
         }
-        
-        // Get configuration from the database
-        String apiKey = ConfigUtil.getLlmApiKey();
-        String modelName = ConfigUtil.getLlmModelName();
-        String apiBaseUrl = ConfigUtil.getLlmApiBaseUrl();
-        
-        // Check if API key is configured
-        if (apiKey == null || apiKey.isEmpty()) {
-            log.error("LLM API key is not configured. Please set the LLM_API_KEY configuration.");
-            return Lists.newArrayList();
-        }
-        
+
         // Limit content length
         String truncatedContent = content.length() > maxCharacters 
                 ? content.substring(0, maxCharacters) 
@@ -74,7 +78,7 @@ public class LLMUtil {
         try {
             // Prepare the API request
             JsonObjectBuilder requestBuilder = Json.createObjectBuilder()
-                    .add("model", modelName)
+                    .add("model", MODEL_NAME)
                     .add("temperature", TEMPERATURE)
                     .add("messages", Json.createArrayBuilder()
                             .add(Json.createObjectBuilder()
@@ -90,9 +94,9 @@ public class LLMUtil {
             
             // Create HTTP request
             HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create(apiBaseUrl + "/chat/completions"))
+                    .uri(URI.create(API_BASE_URL + "/chat/completions"))
                     .header("Content-Type", "application/json")
-                    .header("Authorization", "Bearer " + apiKey)
+                    .header("Authorization", "Bearer " + API_KEY)
                     .POST(HttpRequest.BodyPublishers.ofString(requestBody))
                     .build();
 

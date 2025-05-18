@@ -1,20 +1,21 @@
 package com.sismics.docs.core.dao;
 
-import com.sismics.docs.core.constant.AuditLogType;
-import com.sismics.docs.core.model.jpa.File;
-import com.sismics.docs.core.util.AuditLogUtil;
-import com.sismics.util.context.ThreadLocalContext;
-import jakarta.persistence.EntityManager;
-import jakarta.persistence.NoResultException;
-import jakarta.persistence.Query;
-import jakarta.persistence.TypedQuery;
-
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+
+import com.sismics.docs.core.constant.AuditLogType;
+import com.sismics.docs.core.model.jpa.File;
+import com.sismics.docs.core.util.AuditLogUtil;
+import com.sismics.util.context.ThreadLocalContext;
+
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.NoResultException;
+import jakarta.persistence.Query;
+import jakarta.persistence.TypedQuery;
 
 /**
  * File DAO.

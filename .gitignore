@@ -21,6 +21,3 @@ docs/*
 .DS_Store
 
 apidoc-backup/
-
-# LLM API Keys configuration
-/docs-web/src/prod/resources/config.properties

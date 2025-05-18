@@ -1,10 +1,10 @@
 package com.sismics.docs.core.util;
 
+import java.util.ResourceBundle;
+
 import com.sismics.docs.core.constant.ConfigType;
 import com.sismics.docs.core.dao.ConfigDao;
 import com.sismics.docs.core.model.jpa.Config;
-
-import java.util.ResourceBundle;
 
 /**
  * Configuration parameter utilities.
@@ -87,32 +87,5 @@ public class ConfigUtil {
         } catch (IllegalStateException e) {
             return defaultValue;
         }
-    }
-
-    /**
-     * Get the LLM API key.
-     * 
-     * @return LLM API key
-     */
-    public static String getLlmApiKey() {
-        return ConfigUtil.getConfigStringValue(ConfigType.LLM_API_KEY, "");
-    }
-
-    /**
-     * Get the LLM model name.
-     * 
-     * @return LLM model name
-     */
-    public static String getLlmModelName() {
-        return ConfigUtil.getConfigStringValue(ConfigType.LLM_MODEL_NAME, "deepseek-v3");
-    }
-    
-    /**
-     * Get the LLM API base URL.
-     * 
-     * @return LLM API base URL
-     */
-    public static String getLlmApiBaseUrl() {
-        return ConfigUtil.getConfigStringValue(ConfigType.LLM_API_BASE_URL, "https://dashscope.aliyuncs.com/compatible-mode/v1");
     }
 }
